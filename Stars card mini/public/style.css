@@ -1,0 +1,362 @@
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", Arial, sans-serif;
+  background: #12141c;
+  color: #f0f0f5;
+  min-height: 100vh;
+}
+
+.screen {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 16px;
+  min-height: 100vh;
+}
+.screen.active { display: flex; }
+
+h1 { font-size: 2.6em; letter-spacing: 4px; margin-bottom: 0; color: #ffd166; }
+.subtitle { color: #999; margin-top: 4px; }
+
+button {
+  background: #ffd166;
+  color: #1a1a1a;
+  border: none;
+  padding: 12px 20px;
+  font-size: 1em;
+  font-weight: bold;
+  border-radius: 6px;
+  cursor: pointer;
+  margin: 6px;
+}
+button:hover { background: #ffdd8f; }
+button.secondary { background: #333a4d; color: #eee; }
+button.secondary:hover { background: #454e68; }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.menu-buttons { display: flex; flex-direction: column; gap: 8px; margin-top: 24px; width: 260px; }
+
+input {
+  background: #1e2130;
+  border: 1px solid #454e68;
+  color: #fff;
+  padding: 10px;
+  border-radius: 6px;
+  font-size: 1em;
+}
+
+.player-name-row { margin-top: 28px; color: #aaa; }
+
+.game-code {
+  font-size: 3em;
+  letter-spacing: 8px;
+  background: #1e2130;
+  padding: 14px 28px;
+  border-radius: 8px;
+  margin: 16px 0;
+  color: #ffd166;
+}
+
+.code-input { text-align: center; font-size: 1.6em; letter-spacing: 6px; width: 200px; text-transform: uppercase; }
+
+/* ---------- Deck builder ---------- */
+.deck-champion-picker { display: flex; align-items: center; gap: 10px; margin: 10px 0 18px; }
+.champion-picker { display: flex; gap: 10px; }
+.champion-option {
+  background: #1e2130; border: 2px solid #333a4d; border-radius: 8px;
+  padding: 8px 12px; cursor: pointer; min-width: 160px;
+}
+.champion-option.selected { border-color: #ffd166; background: #2a2438; }
+.champion-option h4 { margin: 0 0 4px; }
+.champion-option small { color: #aaa; }
+
+.deckbuilder-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr 280px;
+  gap: 16px;
+  width: 100%;
+  max-width: 1200px;
+}
+.card-pool, .deck-panel { background: #1a1d29; border-radius: 8px; padding: 12px; max-height: 60vh; overflow-y: auto; }
+.card-detail { background: #1a1d29; border-radius: 8px; padding: 14px; align-self: start; }
+.hint { color: #888; font-size: 0.9em; }
+
+.card-list { display: flex; flex-direction: column; gap: 8px; }
+.card-row {
+  display: flex; justify-content: space-between; align-items: center;
+  background: #23273a; border-radius: 6px; padding: 8px 10px; cursor: pointer;
+}
+.card-row:hover { background: #2c3149; }
+.card-row .stats { color: #aaa; font-size: 0.85em; }
+.card-row button { padding: 4px 10px; margin: 0; font-size: 0.85em; }
+
+/* ---------- Game screen ---------- */
+.screen.game-screen { align-items: stretch; padding: 16px; }
+#game-banner { min-height: 22px; color: #ffd166; font-weight: bold; text-align: center; }
+
+.game-body {
+  display: flex; flex-direction: row; gap: 16px; width: 100%;
+  align-items: flex-start; justify-content: center; flex-wrap: wrap;
+}
+
+/* Panneau bleu (mes infos) a gauche, panneau rouge (infos adverses) a droite */
+.side-panel {
+  width: 240px; flex-shrink: 0; border-radius: 10px; padding: 14px;
+  min-height: 260px;
+}
+.side-panel h3 { margin: 0 0 10px; font-size: 0.95em; text-transform: uppercase; letter-spacing: 1px; }
+.side-panel-mine { background: #14213d; border: 2px solid #2f6fd6; }
+.side-panel-mine h3 { color: #7fb0ff; }
+.side-panel-theirs { background: #3a1420; border: 2px solid #d63b3b; }
+.side-panel-theirs h3 { color: #ff9494; }
+
+.board-column { display: flex; flex-direction: column; align-items: center; flex: 1 1 auto; min-width: 0; }
+
+.opponent-row, .player-row {
+  display: flex; align-items: center; gap: 14px; width: 100%; max-width: 900px; justify-content: center;
+}
+
+.champion-badge { background: #1e2130; border-radius: 8px; padding: 8px 14px; min-width: 220px; text-align: center; }
+.champion-name { font-weight: bold; margin-bottom: 4px; }
+.hp-bar { background: #333; border-radius: 4px; height: 10px; overflow: hidden; }
+.hp-fill { background: #6bcf6b; height: 100%; width: 100%; transition: width 0.2s; }
+
+.mana-badge { background: #22283d; border-radius: 6px; padding: 6px 12px; color: #7fd1ff; font-weight: bold; }
+
+/* Largeur/hauteur fixees en JS (rotation-aware, voir renderBoard) ; ce
+   wrapper centre le plateau (deja tourne visuellement) dans l'espace ainsi
+   reserve, sur les deux axes -- evite le decalage/debordement qui donnait
+   l'impression d'un plateau "zoome" pour les sieges gauche/droite. */
+#board-wrapper {
+  overflow: auto; margin: 12px auto; max-width: 100%;
+  display: flex; align-items: center; justify-content: center;
+}
+#board { position: relative; flex-shrink: 0; transform-origin: center center; }
+/* Une seule grille logique cote serveur (2 ou 4 joueurs) : chaque joueur
+   voit simplement le plateau tourne visuellement (0/90/180/270 selon son
+   siege bas/droite/haut/gauche) pour que SON camp reste en bas de son
+   ecran. Les jetons d'unite sont contre-tournes pour rester lisibles. */
+#board.rot-90 { transform: rotate(90deg); }
+#board.rot-180 { transform: rotate(180deg); }
+#board.rot-270 { transform: rotate(270deg); }
+#board.rot-90 .unit-token { transform: rotate(-90deg); }
+#board.rot-180 .unit-token { transform: rotate(180deg); }
+#board.rot-270 .unit-token { transform: rotate(90deg); }
+
+.hex {
+  position: absolute;
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  background: #232840;
+  border: 1px solid #333a55;
+  display: flex; align-items: center; justify-content: center;
+  cursor: default;
+  transition: background 0.12s;
+  /* Confine mix-blend-mode (boue, ci-dessous) a CETTE case : sans isolation,
+     le calque de teinte se melangerait avec tout ce qui est peint derriere
+     dans le contexte d'empilement englobant (#board), pas seulement le fond
+     propre de la case. Purement une histoire de compositing, aucun effet
+     sur le positionnement/la taille. */
+  isolation: isolate;
+}
+.hex.deploy-own { background: #1f3a2e; }
+.hex.deploy-enemy { background: #3a1f2a; }
+.hex.reachable { background: #2e4d7a; cursor: pointer; }
+.hex.attackable { background: #6a2323; cursor: pointer; }
+.hex.selected { outline: 3px solid #ffd166; z-index: 2; }
+/* Case boueuse (sort "Jet d'eau") : permanente. Le calque ::before (rendu
+   comme un premier enfant, donc TOUJOURS sous le jeton d'unite qui vient
+   apres dans le DOM) teinte la case en marron via mix-blend-mode: multiply
+   -- ca fonce/teinte ce qu'il y a dessous (fond normal, "reachable" bleu,
+   "attackable" rouge...) au lieu de le remplacer completement, donc la boue
+   reste clairement reconnaissable SANS rendre les autres etats illisibles.
+   Le jeton d'unite (enfant reel, peint apres) n'est jamais touche. */
+.hex.mud::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(135deg, #7a4f24 0 7px, #5c3a1a 7px 14px);
+  mix-blend-mode: multiply;
+  opacity: 0.88;
+  pointer-events: none;
+}
+.hex.mud { box-shadow: inset 0 0 0 2px #a9793f; }
+/* Piege pose par le joueur (jamais envoye par le serveur pour un piege
+   adverse -- voir gameState.js#serializeForPlayer) : simple icone discrete
+   en coin, ne cache jamais le jeton d'une unite eventuellement dessus. */
+.hex.trap { cursor: default; }
+.trap-marker {
+  position: absolute;
+  top: 4px; right: 6px;
+  width: 15px; height: 15px;
+  border-radius: 50%;
+  background: #c0392b;
+  color: #fff;
+  font-size: 0.7em; font-weight: bold;
+  line-height: 15px; text-align: center;
+  box-shadow: 0 0 3px #000, 0 0 4px #c0392b;
+  pointer-events: none;
+  z-index: 1;
+}
+/* Sort cible sur case (Jet d'eau, Piege, arme) : toute case du plateau
+   devient une cible valide, y compris occupee -- surbrillance distincte du
+   deplacement (bleu) et de l'attaque (rouge) pour ne pas preter a confusion. */
+.hex.cell-target { background: #2e6a5a; cursor: pointer; }
+
+.unit-token {
+  width: 78%; height: 78%; border-radius: 50%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-size: 0.65em; font-weight: bold; color: #fff;
+  border: 2px solid rgba(255,255,255,0.3);
+  pointer-events: none;
+}
+/* Ma propre unite invisible (Camouflage) : seul moi la recois du serveur
+   avec ce marqueur (voir serializeForPlayer) -- un adversaire ne voit meme
+   pas le jeton, donc ce style n'a de sens que pour son proprietaire. */
+.unit-token.invisible-mine { opacity: 0.55; border-style: dashed; }
+.unit-token.mine { background: #2a6fbd; }
+.unit-token.theirs { background: #b03a3a; }
+.unit-token.champion { border-color: #ffd166; box-shadow: 0 0 6px #ffd166; }
+.unit-token .u-hp { font-size: 0.85em; }
+
+.hand-row { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; justify-content: center; max-width: 900px; }
+.hand-card {
+  background: #23273a; border: 2px solid #333a4d; border-radius: 8px; padding: 8px 10px; width: 120px; cursor: pointer;
+}
+.hand-card:hover { border-color: #ffd166; }
+.hand-card.selected { border-color: #ffd166; background: #2a2438; }
+.hand-card .cost { color: #7fd1ff; font-weight: bold; }
+.hand-card .name { font-weight: bold; margin: 4px 0; }
+.hand-card .stats { font-size: 0.8em; color: #aaa; }
+.hand-card.unaffordable { opacity: 0.45; }
+.ability-mini-tag {
+  display: inline-block; background: #3a3f5c; color: #cfd3e6; border-radius: 4px;
+  padding: 1px 5px; margin: 2px 2px 0 0; font-size: 0.9em; cursor: help;
+}
+
+/* Cartes de sort : bordure violette distincte + etiquette SORT */
+.hand-card.spell { border-color: #8a5fd6; background: #241f38; }
+.hand-card.spell.selected { border-color: #b98bff; }
+.spell-tag {
+  display: inline-block; background: #8a5fd6; color: #fff; font-size: 0.65em;
+  font-weight: bold; padding: 1px 6px; border-radius: 4px; vertical-align: middle;
+}
+
+.info-title { font-weight: bold; font-size: 1.1em; margin-bottom: 6px; }
+.info-stats { display: flex; gap: 14px; flex-wrap: wrap; color: #cfd3e6; font-size: 0.9em; margin-bottom: 6px; }
+.ability-btn {
+  background: #3a3f5c; color: #fff; border: 1px solid #555c80; border-radius: 6px;
+  padding: 6px 10px; margin: 4px 4px 0 0; cursor: pointer; font-size: 0.85em;
+}
+.ability-btn:hover { background: #4a5178; }
+.ability-btn.armed { background: #ffd166; color: #1a1a1a; }
+.ability-btn.passive-tag { background: #2a2438; border-color: #8a5fd6; color: #c9aaff; cursor: help; }
+
+#end-title { font-size: 2em; color: #ffd166; }
+
+/* ---------- Options de partie ---------- */
+.options-form { width: 100%; max-width: 560px; display: flex; flex-direction: column; gap: 16px; margin-top: 16px; }
+.option-row label { font-weight: bold; display: block; margin-bottom: 4px; }
+.option-desc { color: #999; font-size: 0.85em; margin: 2px 0 8px; }
+.option-choices { display: flex; gap: 8px; flex-wrap: wrap; }
+.choice-btn {
+  background: #23273a; color: #ccc; border: 2px solid #333a4d; border-radius: 6px;
+  padding: 8px 14px; margin: 0; font-size: 0.9em; cursor: pointer;
+}
+.choice-btn:hover { border-color: #555c80; }
+.choice-btn.selected { background: #2a2438; border-color: #ffd166; color: #ffd166; }
+
+/* ---------- Salon d'attente ---------- */
+.code-row { display: flex; align-items: center; gap: 10px; }
+.copy-feedback { color: #6bcf6b; font-size: 0.9em; min-height: 1.2em; }
+.lobby-players { margin-top: 14px; width: 100%; max-width: 400px; }
+.lobby-player-row {
+  display: flex; justify-content: space-between; background: #1e2130; border-radius: 6px;
+  padding: 8px 12px; margin-bottom: 6px;
+}
+.lobby-player-row .status { color: #6bcf6b; font-size: 0.85em; }
+.lobby-player-row .status.empty { color: #666; font-style: italic; }
+.lobby-options { margin-top: 14px; background: #1a1d29; border-radius: 8px; padding: 10px 14px; font-size: 0.85em; color: #aaa; max-width: 400px; }
+.lobby-options span { display: inline-block; margin: 2px 8px 2px 0; }
+
+/* ---------- Filtres du deckbuilder ---------- */
+.filters-panel { width: 100%; max-width: 1200px; background: #1a1d29; border-radius: 8px; padding: 12px 14px; margin-bottom: 14px; }
+.filters-row { display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 8px; }
+.filter-group { min-width: 140px; }
+.filter-label { display: block; color: #7fb0ff; font-size: 0.8em; font-weight: bold; margin-bottom: 6px; text-transform: uppercase; }
+.filter-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  background: #23273a; color: #ccc; border: 1px solid #333a4d; border-radius: 14px;
+  padding: 4px 10px; margin: 0; font-size: 0.8em; cursor: pointer;
+}
+.chip:hover { border-color: #555c80; }
+.chip.selected { background: #2f6fd6; border-color: #2f6fd6; color: #fff; }
+.deck-warning { color: #ff8a8a; font-size: 0.85em; min-height: 1.2em; margin: 0 0 8px; }
+
+/* ---------- Boutons dangereux / abandon ---------- */
+button.danger { background: #b03a3a; color: #fff; }
+button.danger:hover { background: #cc4a4a; }
+
+.turn-timer { text-align: center; color: #ffd166; font-weight: bold; min-height: 18px; }
+.sandbox-badge {
+  display: none; text-align: center; background: #8a5fd6; color: #fff; font-weight: bold;
+  font-size: 0.8em; letter-spacing: 1px; border-radius: 6px; padding: 4px 10px;
+  width: fit-content; margin: 4px auto;
+}
+.sandbox-badge.active { display: block; }
+
+.mini-champion-badge {
+  background: #1e2130; border-radius: 8px; padding: 6px 10px; text-align: center; min-width: 150px; font-size: 0.85em;
+}
+.mini-champion-badge .champion-name { font-size: 0.9em; }
+.mini-champion-badge.eliminated { opacity: 0.4; }
+
+/* ---------- Modale de double confirmation (abandon) ---------- */
+.modal-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.65);
+  align-items: center; justify-content: center; z-index: 100;
+}
+.modal-overlay.active { display: flex; }
+.modal-box { background: #1a1d29; border: 2px solid #b03a3a; border-radius: 10px; padding: 24px; max-width: 380px; text-align: center; }
+.modal-box p { margin-top: 0; }
+
+/* ---------- Version / Patch notes ---------- */
+.version-tag { color: #666; font-size: 0.8em; margin-top: 18px; }
+.patchnotes-list { width: 100%; max-width: 640px; text-align: left; margin-top: 10px; }
+.patch-entry { background: #1a1d29; border-radius: 8px; padding: 14px 18px; margin-bottom: 14px; }
+.patch-entry h3 { margin: 0 0 2px; color: #ffd166; }
+.patch-entry .patch-title { color: #aaa; font-size: 0.9em; margin: 0 0 8px; }
+.patch-entry ul { margin: 0; padding-left: 20px; }
+.patch-entry li { margin-bottom: 4px; }
+
+/* ---------- Barre d'outils multi-decks ---------- */
+.deck-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+.deck-toolbar select {
+  background: #1e2130; border: 1px solid #454e68; color: #fff; padding: 9px 10px; border-radius: 6px; font-size: 0.95em;
+}
+.deck-toolbar button { padding: 8px 14px; font-size: 0.85em; }
+
+/* ---------- Selecteur de deck dans le salon d'attente ---------- */
+.lobby-deck-picker { width: 100%; max-width: 420px; margin-top: 10px; }
+.lobby-deck-picker h3 { margin: 0 0 8px; font-size: 1em; color: #7fb0ff; }
+.lobby-deck-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.lobby-deck-option {
+  background: #1e2130; border: 2px solid #333a4d; border-radius: 6px; padding: 8px 12px; cursor: pointer;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.lobby-deck-option:hover { border-color: #555c80; }
+.lobby-deck-option.selected { border-color: #ffd166; background: #2a2438; }
+.lobby-deck-option .stats { color: #aaa; font-size: 0.85em; }
+
+/* ---------- Infobulle generique (competences, cartes, unites) ---------- */
+.tooltip {
+  display: none; position: fixed; z-index: 200; max-width: 280px;
+  background: #0f1119; border: 1px solid #454e68; border-radius: 8px;
+  padding: 10px 12px; font-size: 0.85em; color: #eee; pointer-events: none;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+}
+.tooltip.visible { display: block; }
+.tooltip b { color: #ffd166; }
+.tooltip .tt-line { margin-top: 4px; color: #bbb; }
+[data-tooltip] { cursor: help; }

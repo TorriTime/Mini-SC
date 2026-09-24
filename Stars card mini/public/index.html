@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Stars Cards - Mini</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ===================== MENU PRINCIPAL ===================== -->
+<section id="screen-menu" class="screen active">
+  <h1>STARS CARDS</h1>
+  <p class="subtitle">Prototype web</p>
+  <div class="menu-buttons">
+    <button id="btn-create">CREER UNE PARTIE</button>
+    <button id="btn-join">REJOINDRE UNE PARTIE</button>
+    <button id="btn-deck">MON DECK</button>
+    <button class="secondary" id="btn-patchnotes">PATCH NOTES</button>
+  </div>
+  <p class="player-name-row">
+    Pseudo :
+    <input id="input-player-name" type="text" maxlength="16" placeholder="Joueur" />
+  </p>
+  <p class="version-tag" id="version-tag"></p>
+</section>
+
+<!-- ===================== PATCH NOTES ===================== -->
+<section id="screen-patchnotes" class="screen">
+  <h2>Patch Notes</h2>
+  <div id="patchnotes-list" class="patchnotes-list"></div>
+  <button class="secondary" id="btn-patchnotes-back">Retour au menu</button>
+</section>
+
+<!-- ===================== OPTIONS DE PARTIE (avant creation) ===================== -->
+<section id="screen-options" class="screen">
+  <h2>Configurer la partie</h2>
+  <div class="options-form">
+    <div class="option-row">
+      <label>Nombre de joueurs</label>
+      <div class="option-choices" id="opt-maxplayers">
+        <button type="button" class="choice-btn selected" data-value="2">2 joueurs</button>
+        <button type="button" class="choice-btn" data-value="4">4 joueurs</button>
+      </div>
+    </div>
+
+    <div class="option-row">
+      <label>Riposte</label>
+      <p class="option-desc">Les unites attaquees ripostent si elles peuvent attaquer en retour.</p>
+      <div class="option-choices" id="opt-retaliate">
+        <button type="button" class="choice-btn selected" data-value="true">Oui</button>
+        <button type="button" class="choice-btn" data-value="false">Non</button>
+      </div>
+    </div>
+
+    <div class="option-row">
+      <label>Remelange de la defausse</label>
+      <p class="option-desc">Lorsque la pioche est vide, la defausse retourne dans la pioche.</p>
+      <div class="option-choices" id="opt-reshuffle">
+        <button type="button" class="choice-btn" data-value="true">Oui</button>
+        <button type="button" class="choice-btn selected" data-value="false">Non</button>
+      </div>
+    </div>
+
+    <div class="option-row">
+      <label>Limite de cartes en main</label>
+      <div class="option-choices" id="opt-handlimit">
+        <button type="button" class="choice-btn selected" data-value="">Non</button>
+        <button type="button" class="choice-btn" data-value="5">5 cartes</button>
+        <button type="button" class="choice-btn" data-value="7">7 cartes</button>
+        <button type="button" class="choice-btn" data-value="9">9 cartes</button>
+      </div>
+    </div>
+
+    <div class="option-row">
+      <label>Chronometre par tour</label>
+      <div class="option-choices" id="opt-timer">
+        <button type="button" class="choice-btn selected" data-value="">Non</button>
+        <button type="button" class="choice-btn" data-value="20">20 secondes</button>
+        <button type="button" class="choice-btn" data-value="40">40 secondes</button>
+        <button type="button" class="choice-btn" data-value="60">1 minute</button>
+      </div>
+    </div>
+
+    <div class="option-row">
+      <label>Mode bac a sable</label>
+      <p class="option-desc">Mana illimite, cartes rejouables a l'infini, Champion immortel.</p>
+      <div class="option-choices" id="opt-sandbox">
+        <button type="button" class="choice-btn" data-value="true">Oui</button>
+        <button type="button" class="choice-btn selected" data-value="false">Non</button>
+      </div>
+    </div>
+  </div>
+  <div class="menu-buttons">
+    <button id="btn-options-create">CREER LA PARTIE</button>
+    <button class="secondary" id="btn-options-back">Retour au menu</button>
+  </div>
+</section>
+
+<!-- ===================== SALON D'ATTENTE ===================== -->
+<section id="screen-create" class="screen">
+  <h2>Partie creee</h2>
+  <p>Communique ce code a tes adversaires :</p>
+  <div class="code-row">
+    <div id="create-code" class="game-code">----</div>
+    <button class="secondary" id="btn-copy-code">COPIER</button>
+  </div>
+  <p id="copy-feedback" class="copy-feedback"></p>
+  <p id="create-status">En attente d'un adversaire...</p>
+  <div id="lobby-players" class="lobby-players"></div>
+  <div id="lobby-options" class="lobby-options"></div>
+  <div id="lobby-deck-picker" class="lobby-deck-picker"></div>
+  <button class="secondary" id="btn-create-back">Retour au menu</button>
+</section>
+
+<!-- ===================== REJOINDRE PARTIE ===================== -->
+<section id="screen-join" class="screen">
+  <h2>Rejoindre une partie</h2>
+  <input id="input-join-code" type="text" maxlength="5" placeholder="CODE" class="code-input" />
+  <div class="menu-buttons">
+    <button id="btn-join-confirm">REJOINDRE</button>
+    <button class="secondary" id="btn-join-back">Retour au menu</button>
+  </div>
+  <p id="join-status"></p>
+</section>
+
+<!-- ===================== DECK BUILDER ===================== -->
+<section id="screen-deck" class="screen">
+  <h2>Mon Deck</h2>
+  <div id="deck-toolbar" class="deck-toolbar"></div>
+  <div class="deck-champion-picker">
+    <span>Champion :</span>
+    <div id="champion-picker" class="champion-picker"></div>
+  </div>
+
+  <div class="filters-panel" id="filters-panel">
+    <div class="filters-row">
+      <div class="filter-group">
+        <span class="filter-label">Cout</span>
+        <div id="filter-cost" class="filter-chips"></div>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">Tri</span>
+        <div class="filter-chips">
+          <button type="button" class="chip" data-sort="asc">A -&gt; Z</button>
+          <button type="button" class="chip" data-sort="desc">Z -&gt; A</button>
+        </div>
+      </div>
+    </div>
+    <div class="filters-row">
+      <div class="filter-group"><span class="filter-label">Type</span><div id="filter-type" class="filter-chips"></div></div>
+      <div class="filter-group"><span class="filter-label">Classe</span><div id="filter-class" class="filter-chips"></div></div>
+      <div class="filter-group"><span class="filter-label">Race</span><div id="filter-race" class="filter-chips"></div></div>
+      <div class="filter-group"><span class="filter-label">Objectif</span><div id="filter-role" class="filter-chips"></div></div>
+    </div>
+    <button type="button" class="secondary" id="btn-filters-reset">Reinitialiser les filtres</button>
+  </div>
+
+  <div class="deckbuilder-layout">
+    <div class="card-pool">
+      <h3>Cartes disponibles</h3>
+      <div id="card-pool-list" class="card-list"></div>
+    </div>
+    <div class="deck-panel">
+      <h3>Mon deck (<span id="deck-count">0</span> cartes)</h3>
+      <p id="deck-warning" class="deck-warning"></p>
+      <div id="deck-list" class="card-list"></div>
+    </div>
+    <div class="card-detail" id="card-detail">
+      <p class="hint">Clique sur une carte pour voir ses details.</p>
+    </div>
+  </div>
+  <button class="secondary" id="btn-deck-back">Retour au menu</button>
+</section>
+
+<!-- ===================== ECRAN DE JEU ===================== -->
+<section id="screen-game" class="screen game-screen">
+  <div id="game-banner"></div>
+  <div id="turn-timer" class="turn-timer"></div>
+  <div id="sandbox-badge" class="sandbox-badge">BAC A SABLE</div>
+
+  <div class="game-body">
+    <aside id="panel-mine" class="side-panel side-panel-mine">
+      <h3>Mes informations</h3>
+      <div id="panel-mine-content">
+        <p class="hint">Selectionne une unite ou une carte pour voir ses informations.</p>
+      </div>
+    </aside>
+
+    <div class="board-column">
+      <div class="opponent-row" id="opponent-row"></div>
+
+      <div id="board-wrapper">
+        <div id="board"></div>
+      </div>
+
+      <div class="player-row">
+        <div class="champion-badge" id="champion-badge-player">
+          <div class="champion-name">Moi</div>
+          <div class="hp-bar"><div class="hp-fill"></div></div>
+        </div>
+        <div class="mana-badge" id="mana-badge-player">Mana: -/-</div>
+        <button id="btn-end-turn">TERMINER LE TOUR</button>
+        <button id="btn-forfeit" class="danger">ABANDONNER</button>
+      </div>
+
+      <div class="hand-row" id="hand-row"></div>
+    </div>
+
+    <aside id="panel-theirs" class="side-panel side-panel-theirs">
+      <h3>Adversaire</h3>
+      <div id="panel-theirs-content">
+        <p class="hint">Clique une unite adverse pour voir ses informations.</p>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- ===================== FIN DE PARTIE ===================== -->
+<section id="screen-end" class="screen">
+  <h2 id="end-title">Partie terminee</h2>
+  <div class="menu-buttons">
+    <button id="btn-rematch">REJOUER</button>
+    <button class="secondary" id="btn-end-menu">Retour au menu</button>
+  </div>
+</section>
+
+<!-- ===================== MODALE ABANDON (double confirmation) ===================== -->
+<div id="forfeit-overlay" class="modal-overlay">
+  <div class="modal-box">
+    <div id="forfeit-step-1">
+      <p>Es-tu sur de vouloir abandonner la partie ?</p>
+      <div class="menu-buttons">
+        <button class="secondary" id="btn-forfeit-cancel-1">Continuer la partie</button>
+        <button class="danger" id="btn-forfeit-next">Abandonner</button>
+      </div>
+    </div>
+    <div id="forfeit-step-2" style="display:none;">
+      <p>Confirmer definitivement l'abandon ? Cette action est irreversible.</p>
+      <div class="menu-buttons">
+        <button class="secondary" id="btn-forfeit-cancel-2">Annuler</button>
+        <button class="danger" id="btn-forfeit-confirm">Confirmer l'abandon</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== INFOBULLE GENERIQUE (competences) ===================== -->
+<div id="tooltip" class="tooltip" role="tooltip"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="client.js"></script>
+</body>
+</html>

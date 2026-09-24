@@ -1,0 +1,17 @@
+{
+  "name": "stars-cards-mini",
+  "version": "0.1.0",
+  "description": "Prototype web ultra simplifie de Stars Cards - jeu de cartes tactique sur grille hexagonale",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "dev": "node server/server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
