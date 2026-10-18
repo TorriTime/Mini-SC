@@ -162,6 +162,14 @@ input {
 }
 .hex.deploy-own { background: #1f3a2e; }
 .hex.deploy-enemy { background: #3a1f2a; }
+.hex.mine-zone.mine-neutral { background: #34395a; }
+.hex.mine-zone.mine-mine { background: #24508a; }
+.hex.mine-zone.mine-theirs { background: #6a2a36; }
+.hex.mine-center { box-shadow: inset 0 0 0 3px #ffd166; }
+.hex.mine-center.mine-unsafe { box-shadow: inset 0 0 0 3px #e06060; }
+.hex.deploy-advanced { background: #2f4a2a; box-shadow: inset 0 0 0 3px #ffd166; }
+.mine-marker { position: absolute; top: 2px; left: 50%; transform: translateX(-50%); font-size: 0.8em; color: #ffd166; }
+.unit-token.tower { border-radius: 4px; }
 .hex.reachable { background: #2e4d7a; cursor: pointer; }
 .hex.attackable { background: #6a2323; cursor: pointer; }
 .hex.selected { outline: 3px solid #ffd166; z-index: 2; }

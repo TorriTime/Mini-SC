@@ -86,7 +86,7 @@
   const DECKS_KEY = "starsCardsDecksV2";
   const LEGACY_DECK_KEY = "starsCardsDeck"; // ancien format mono-deck, migre si present
   const MIN_DECK_SIZE = 10;
-  const DEFAULT_DECK_CARDS = ["soldier", "scout", "archer", "tank", "berserker", "militia", "healer", "knight", "heal", "strike", "draw"];
+  const DEFAULT_DECK_CARDS = ["worker", "soldier", "scout", "archer", "tank", "berserker", "militia", "healer", "knight", "heal", "strike", "draw"];
 
   function uid() { return "d_" + Math.random().toString(36).slice(2, 10); }
 
@@ -766,7 +766,7 @@
 
     // Mon champion + mana
     updateChampionBadge("champion-badge-player", championUnitOf(state, me));
-    document.getElementById("mana-badge-player").textContent = `Mana: ${myPlayer.mana}/${myPlayer.maxMana}`;
+    document.getElementById("mana-badge-player").textContent = manaLabel(myPlayer);
 
     // Adversaires (1 en 2 joueurs, jusqu'a 3 en 4 joueurs)
     const oppRow = document.getElementById("opponent-row");
@@ -780,7 +780,7 @@
       div.innerHTML = `
         <div class="champion-name">${oppPlayer.name}${oppPlayer.eliminated ? " - elimine" : (champ && champ.health <= 0 ? " - KO" : "")}</div>
         <div class="hp-bar"><div class="hp-fill" style="width:${hpPct}%; background:${hpPct > 50 ? "#6bcf6b" : hpPct > 20 ? "#e0b34d" : "#e06060"};"></div></div>
-        <div class="mana-badge">Mana: ${oppPlayer.mana}/${oppPlayer.maxMana}</div>
+        <div class="mana-badge">${manaLabel(oppPlayer)}</div>
       `;
       oppRow.appendChild(div);
     });
@@ -790,6 +790,12 @@
 
     document.getElementById("btn-end-turn").disabled = state.activePlayerId !== me;
     document.getElementById("btn-forfeit").disabled = myPlayer.eliminated;
+  }
+
+  // "Mana 3/5 (limite 4) - quarts 2/4" : mana actuel / mana max stockable,
+  // limite = cout maximal d'une carte, quarts = progression vers la limite suivante.
+  function manaLabel(p) {
+    return `Mana: ${p.mana}/${p.manaCap} (limite ${p.maxMana}) - quarts ${p.quarters}/4`;
   }
 
   function updateTurnTimer(state) {
@@ -827,7 +833,7 @@
     (myPlayer.hand || []).forEach(cardInst => {
       const card = cardById(cardInst.cardId);
       const div = document.createElement("div");
-      const affordable = state.options.sandbox || myPlayer.mana >= card.cost;
+      const affordable = state.options.sandbox || (myPlayer.mana >= card.cost && card.cost <= myPlayer.maxMana);
       const isSpell = card.type === "spell";
       div.className = "hand-card" + (isSpell ? " spell" : "") +
         (selectedHand && selectedHand.instanceId === cardInst.instanceId ? " selected" : "") +
@@ -912,7 +918,19 @@
     wrapper.style.width = (swapped ? boardH : boardW) + "px";
     wrapper.style.height = (swapped ? boardW : boardH) + "px";
 
-    const myZoneKeys = new Set(deployZoneCells(mySide, cols, rows).map(c => `${c.q},${c.r}`));
+    // Cases de deploiement du joueur envoyees par le serveur (camp + cases a
+    // cote de ses tours d'ouvrier) : le client ne les recalcule pas.
+    const myZoneKeys = new Set((state.deployCells || []).map(c => `${c.q},${c.r}`));
+    const advancedZoneKeys = new Set((state.deployCells || []).filter(c => c.advanced).map(c => `${c.q},${c.r}`));
+    const baseZoneKeys = new Set(deployZoneCells(mySide, cols, rows).map(c => `${c.q},${c.r}`));
+    // Mines : zone, case centrale et proprietaire (couleur relative au joueur).
+    const mineZoneKeys = new Map();   // "q,r" -> "mine-mine" | "mine-theirs" | "mine-neutral"
+    const mineCenterKeys = new Map(); // "q,r" -> mine
+    (state.mines || []).forEach(m => {
+      const cls = !m.ownerId ? "mine-neutral" : (m.ownerId === me ? "mine-mine" : "mine-theirs");
+      m.zone.forEach(c => { if (!mineZoneKeys.has(`${c.q},${c.r}`) || cls !== "mine-neutral") mineZoneKeys.set(`${c.q},${c.r}`, cls); });
+      mineCenterKeys.set(`${m.q},${m.r}`, m);
+    });
     const enemyZoneKeys = new Set();
     (state.board.seats || []).forEach(side => {
       if (side === mySide) return;
@@ -1001,8 +1019,22 @@
         div.style.height = hexH + "px";
 
         const isMyZone = myZoneKeys.has(key);
-        if (isMyZone) div.classList.add("deploy-own");
+        if (baseZoneKeys.has(key)) div.classList.add("deploy-own");
         else if (enemyZoneKeys.has(key)) div.classList.add("deploy-enemy");
+        if (advancedZoneKeys.has(key)) div.classList.add("deploy-advanced");
+        if (mineZoneKeys.has(key)) div.classList.add("mine-zone", mineZoneKeys.get(key));
+        const mineHere = mineCenterKeys.get(key);
+        if (mineHere) {
+          div.classList.add("mine-center");
+          if (mineHere.ownerId && !mineHere.safe) div.classList.add("mine-unsafe");
+          const marker = document.createElement("div");
+          marker.className = "mine-marker";
+          marker.textContent = "\u25C6";
+          const who = !mineHere.ownerId ? "neutre"
+            : (mineHere.home ? "mine de camp, " : "") + (mineHere.ownerId === me ? "a toi" : "a l'adversaire");
+          marker.setAttribute("data-tooltip", `Mine (${who})${mineHere.ownerId ? (mineHere.safe ? " - zone sure" : " - zone NON sure") : " - un Ouvrier doit rester un tour complet au centre pour y construire une tour"}.`);
+          div.appendChild(marker);
+        }
 
         if (mudKeys.has(key)) div.classList.add("mud");
         if (trapKeys.has(key)) {
@@ -1031,7 +1063,9 @@
           const isMine = unit.ownerId === me;
           token.className = "unit-token " + (isMine ? "mine" : "theirs") + (unit.isChampion ? " champion" : "") +
             (isMine && unit.invisible ? " invisible-mine" : "");
-          token.innerHTML = `<div>${unit.name}${isMine && unit.invisible ? " 👻" : ""}</div><div class="u-hp">${unit.health}/${unit.maxHealth}</div>`;
+          if (unit.isTower) token.classList.add("tower");
+          const settling = unit.settlingMineId ? " (installe)" : "";
+          token.innerHTML = `<div>${unit.name}${settling}${isMine && unit.invisible ? " 👻" : ""}</div><div class="u-hp">${unit.health}/${unit.maxHealth}</div>`;
           div.appendChild(token);
 
           if (unit.id === selectedUnitId || unit.id === inspectedEnemyId) div.classList.add("selected");
@@ -1142,7 +1176,8 @@
   // ralentie par la boue.
   function movementLabel(unit) {
     const eff = unit.effectiveMovement != null ? unit.effectiveMovement : unit.movement;
-    return eff !== unit.movement ? `${eff} (boue, -1)` : `${eff}`;
+    if (eff === unit.movement) return `${eff}`;
+    return eff > unit.movement ? `${eff} (zone sure)` : `${eff} (boue, -1)`;
   }
 
   function renderInfoPanel(state, selectedUnit) {
@@ -1170,7 +1205,7 @@
           <span>Deplacement: ${c.movement}</span><span>Portee: ${c.range}</span>
         </div>
         <p>${c.description}</p>
-        <p class="hint">Clique une case verte de ta zone de deploiement pour l'invoquer.</p>
+        <p class="hint">Clique une case verte de ta zone de deploiement pour l'invoquer. Les cases a cote de tes tours d'ouvrier (bordure doree) permettent un deploiement avance, mais la mine concernee perd son prochain quart de mana.</p>
       `;
       return;
     }

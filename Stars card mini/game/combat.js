@@ -23,6 +23,11 @@ function effectiveDefense(unit) {
   return def;
 }
 
+/** Degats apres reduction (ex : Noyau celeste, multiplicateur 0.85), minimum 1. */
+function scaleDamage(amount, multiplier = 1) {
+  return Math.max(1, Math.round(amount * multiplier));
+}
+
 function inRange(attacker, target) {
   const dist = cubeDistance(attacker, target);
   return dist <= attacker.range && dist > 0;
@@ -32,10 +37,10 @@ function inRange(attacker, target) {
  * Applique une attaque de `attacker` sur `target`. Mute directement les
  * unites (health). Retourne le rapport de degats.
  */
-function resolveAttack(attacker, target) {
+function resolveAttack(attacker, target, damageMultiplier = 1) {
   const rawAttack = effectiveAttack(attacker);
   const defense = effectiveDefense(target);
-  const damage = Math.max(1, rawAttack - defense);
+  const damage = scaleDamage(rawAttack - defense, damageMultiplier);
   target.health = Math.max(0, target.health - damage);
   return { damage, targetHealth: target.health, targetKO: target.health <= 0 };
 }
@@ -52,4 +57,4 @@ function canRetaliate(defender, attacker) {
   return inRange(defender, attacker);
 }
 
-module.exports = { effectiveAttack, effectiveDefense, inRange, resolveAttack, canRetaliate };
+module.exports = { scaleDamage, effectiveAttack, effectiveDefense, inRange, resolveAttack, canRetaliate };

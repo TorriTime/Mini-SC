@@ -11,6 +11,12 @@
 //                          filtrable sur ce critere, jamais une erreur.
 //   splash: { radius, percent } -- optionnel : degats de zone sur l'attaque
 //                                   de base (voir game/combat.js).
+//   isWorker: true -- optionnel : ouvrier, peut s'installer au centre d'une
+//                     mine pour y creer une tour (voir game/gameState.js).
+//   aura: { radius, damageReduction } -- optionnel : les troupes ALLIEES a
+//                     `radius` (cette unite incluse) subissent
+//                     `damageReduction` (0.15 = -15%) de degats en moins.
+//                     Ne se cumule pas entre plusieurs sources.
 // }
 // Les sorts (cartes sans unite) vivent a part dans data/spells.js (type: "spell").
 
@@ -164,6 +170,53 @@ module.exports = [
     class: "Guerrier",
     race: "Orc",
     role: "Tank"
+  },
+  {
+    id: "worker",
+    name: "Ouvrier",
+    type: "unit",
+    cost: 1,
+    attack: 5,
+    health: 30,
+    movement: 2,
+    range: 1,
+    description: "S'installe au centre d'une mine et y reste un tour complet pour y construire une tour d'ouvrier et dominer la zone.",
+    abilities: [],
+    class: "Ingenieur",
+    race: "Humain",
+    role: "Ouvrier",
+    isWorker: true
+  },
+  {
+    id: "celestial_core",
+    name: "Noyau celeste",
+    type: "unit",
+    cost: 4,
+    attack: 0,
+    health: 117,
+    movement: 1,
+    range: 0,
+    description: "Dans une zone de 3, reduit de 15% les degats subis par toutes les troupes alliees (ne se cumule pas).",
+    abilities: [],
+    class: "Mage",
+    race: "Celeste",
+    role: "Soutien",
+    aura: { radius: 3, damageReduction: 0.15 }
+  },
+  {
+    id: "taunt_goblin",
+    name: "Gobelin provocateur",
+    type: "unit",
+    cost: 1,
+    attack: 40,
+    health: 10,
+    movement: 3,
+    range: 1,
+    description: "Tres fragile mais frappe fort. Force les ennemis a portee a le cibler en priorite (Provocation).",
+    abilities: ["provocation"],
+    class: "Roublard",
+    race: "Gobelin",
+    role: "Provocateur"
   },
   {
     id: "dynamiter",
