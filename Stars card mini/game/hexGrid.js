@@ -83,7 +83,9 @@ const NEIGHBOR_DIRS = [
 // 4 joueurs : plateau plus grand, carre, avec une zone par cote (bas, haut,
 // gauche, droite). Meme taille de case hexagonale (HEX_SIZE inchangee
 // cote client) -- seul le NOMBRE de cases augmente.
-const BOARD_2P = { cols: 9, rows: 10, seats: ["bottom", "top"] };
+// 11 lignes (impair) : le centre du plateau est une vraie case, ce qui rend
+// l'alignement des mines centrales parfaitement symetrique entre les 2 camps.
+const BOARD_2P = { cols: 9, rows: 11, seats: ["bottom", "top"] };
 const BOARD_4P = { cols: 13, rows: 13, seats: ["bottom", "top", "left", "right"] };
 
 function boardConfigFor(maxPlayers) {
@@ -149,10 +151,35 @@ function createBoard(maxPlayers) {
     return offsetToAxial(COLS - 1, Math.floor(ROWS / 2)); // "right"
   }
 
+  // Mines : zones de rayon MINE_RADIUS autour d'une case centrale.
+  // `home` = siege dont c'est la mine de camp (possedee d'office), null pour
+  // une mine neutre a conquerir.
+  // 2 joueurs (symetrie centrale parfaite) : mine de camp, 2 mines proches de
+  // chaque camp, 3 mines alignees au centre (distance 3 entre chacune).
+  // 4 joueurs : mine de camp + mine centrale + 4 mines en diagonale.
+  function mineSites() {
+    const at = (col, row, home) => ({ ...offsetToAxial(col, row), home: home || null });
+    if (seats.length === 2) {
+      return [
+        at(4, ROWS - 2, "bottom"), at(4, 1, "top"),
+        at(1, 7), at(7, 7), at(7, 2), at(1, 2),
+        at(1, 5), at(4, 5), at(7, 4)
+      ];
+    }
+    const mid = Math.floor(COLS / 2);
+    return [
+      at(mid, ROWS - 3, "bottom"), at(mid, 2, "top"),
+      at(2, mid, "left"), at(COLS - 3, mid, "right"),
+      at(mid, mid),
+      at(4, 4), at(COLS - 5, 4), at(4, ROWS - 5), at(COLS - 5, ROWS - 5)
+    ];
+  }
+
   return {
     cols: COLS,
     rows: ROWS,
     seats,
+    mineSites,
     inBounds,
     neighbors,
     allCells,

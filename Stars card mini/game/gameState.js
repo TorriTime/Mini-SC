@@ -9,7 +9,7 @@ const championsById = require("../data/champions").reduce((m, c) => (m[c.id] = c
 const abilitiesById = require("../data/abilities");
 const hex = require("./hexGrid");
 const { reachableCells, isReachable, shortestPath } = require("./movement");
-const { inRange, resolveAttack, canRetaliate, effectiveDefense } = require("./combat");
+const { inRange, resolveAttack, canRetaliate, effectiveDefense, scaleDamage } = require("./combat");
 const { inAbilityRange, applyAbilityEffect, tickBuffs } = require("./abilities");
 const spells = require("./spells");
 const usage = require("./usage");
@@ -20,7 +20,12 @@ function playableCardDef(id) {
 }
 
 const STARTING_HAND = 5;
-const MAX_MANA = 10;
+const MAX_MANA = 10;          // limite de mana maximale (cout max d'une carte)
+const QUARTERS_PER_MANA = 4;  // 4 quarts de mana (1 par mine et par tour) = +1 de limite definitive
+const MINE_RADIUS = 1;        // une mine est la zone de rayon 1 autour de sa case centrale
+const SAFE_RADIUS = 2;        // zone sure autour d'une mine controlee
+const SAFE_MIN_MOVEMENT = 2;  // deplacement minimal des unites dans une zone sure
+const TOWER_HEALTH = 50;
 const MIN_DECK_SIZE = 10;
 
 const DEFAULT_OPTIONS = {
@@ -83,6 +88,7 @@ function createGame(hostId, hostName, { maxPlayers, options } = {}) {
     units: {},
     mudCells: new Set(), // cases boueuses (voir sort "Jet d'eau") -- cle "q,r", permanentes pour la partie
     traps: {},           // id -> { id, ownerId, q, r } -- jamais envoye tel quel a un adversaire (voir serializeForPlayer)
+    mines: [],           // { id, q, r, homeOwnerId, unsafeOwnerId } -- cree au lancement (voir startGame)
     winnerId: null,
     log: []
   };
@@ -102,7 +108,8 @@ function newPlayer(id, name) {
     graveyard: [],   // defausse : sorts utilises (voir option "reshuffleDiscard")
     cardUses: {},    // limites d'utilisation par carte/sort (voir game/usage.js)
     mana: 0,
-    maxMana: 0,
+    maxMana: 0,      // limite de mana : cout maximal d'une carte, et mana gagne a chaque debut de tour
+    quarters: 0,     // quarts de mana accumules (voir collectMineQuarters)
     ready: false,
     connected: true,
     eliminated: false
@@ -160,9 +167,42 @@ function makeUnitFromCard(cardId, ownerId, side, q, r) {
     range: card.range,
     abilities: card.abilities.slice(),
     abilityUses: {},
+    isWorker: !!card.isWorker,
+    aura: card.aura || null,
     q, r,
     hasMoved: false,
     hasAttacked: false,
+    buffs: []
+  };
+}
+
+/** Tour d'ouvrier : creee par un Ouvrier qui a termine son installation au
+ * centre d'une mine. Ce n'est pas une carte : elle n'attaque pas, ne bouge
+ * pas, et tant qu'elle est vivante son proprietaire domine la mine (voir
+ * mineOwnerId -- la domination n'est jamais stockee, donc detruire la tour
+ * la stoppe instantanement). */
+function makeTower(ownerId, side, mine) {
+  return {
+    id: uid("tower"),
+    ownerId,
+    side,
+    isChampion: false,
+    isTower: true,
+    mineId: mine.id,
+    skipQuarter: false, // vrai si une unite a ete deployee a cote : le prochain quart n'est pas mine
+    sourceId: "tower",
+    name: "Tour d'ouvrier",
+    attack: 0,
+    health: TOWER_HEALTH,
+    maxHealth: TOWER_HEALTH,
+    movement: 0,
+    baseMovement: 0,
+    range: 0,
+    abilities: [],
+    abilityUses: {},
+    q: mine.q, r: mine.r,
+    hasMoved: true,
+    hasAttacked: true,
     buffs: []
   };
 }
@@ -223,7 +263,13 @@ function startGame(state) {
 
     player.maxMana = 1;
     player.mana = 1;
+    player.quarters = 0;
   }
+
+  state.mines = state.boardConfig.mineSites().map((site, i) => {
+    const homeOwner = site.home ? state.order.find(pid => state.players[pid].side === site.home) : null;
+    return { id: `mine_${i}`, q: site.q, r: site.r, homeOwnerId: homeOwner || null, unsafeOwnerId: null };
+  });
 
   state.currentTurnIndex = 0;
   state.turnNumber = 1;
@@ -268,6 +314,23 @@ function canAfford(state, player, cost) {
   return state.options.sandbox || player.mana >= cost;
 }
 
+/** Mana maximal stockable : la limite + le mana additionnel qui "recouvre"
+ * (la moitie de la limite, arrondie a l'inferieur). Ex : limite 2 -> 3 de
+ * mana au total, mais aucune carte a 3 n'est jouable (limite 2). */
+function manaCap(player) {
+  return player.maxMana + Math.floor(player.maxMana / 2);
+}
+
+/** Une CARTE (unite ou sort) ne peut jamais couter plus que la limite de mana,
+ * meme si le mana additionnel permettrait de payer le total. */
+function assertCanPayCard(state, player, cost) {
+  if (state.options.sandbox) return;
+  if (cost > player.maxMana) {
+    throw new Error(`Cout trop eleve : votre limite de mana est de ${player.maxMana}.`);
+  }
+  if (player.mana < cost) throw new Error("Mana insuffisant.");
+}
+
 function spendMana(state, player, cost) {
   if (state.options.sandbox) return;
   player.mana -= cost;
@@ -289,10 +352,16 @@ function isAlive(unit) {
  * elle-meme -- une unite qui quitte la boue redevient immediatement normale,
  * sans jamais depasser sa vraie limite de deplacement). */
 function effectiveMovement(state, unit) {
-  if (state.mudCells.has(hex.key(unit.q, unit.r))) {
-    return Math.max(1, unit.movement - 1);
+  let movement = unit.movement;
+  // Zone sure : au moins 2 de deplacement, peu importe la mobilite de base
+  // (une unite immobilisee, ex : tour ou Sniper a l'arret, reste a 0).
+  if (movement > 0 && movement < SAFE_MIN_MOVEMENT && isInSafeZone(state, unit)) {
+    movement = SAFE_MIN_MOVEMENT;
   }
-  return unit.movement;
+  if (state.mudCells.has(hex.key(unit.q, unit.r))) {
+    return Math.max(1, movement - 1);
+  }
+  return movement;
 }
 
 /** Une unite est invisible si elle porte le buff pose par la competence
@@ -340,6 +409,132 @@ function triggerTrapsAlongPath(state, unit, path) {
     }
   }
   return triggered;
+}
+
+function mineCells(board, mine) {
+  const cells = [{ q: mine.q, r: mine.r }];
+  for (const n of board.neighbors(mine.q, mine.r)) {
+    if (hex.cubeDistance(n, mine) <= MINE_RADIUS) cells.push(n);
+  }
+  return cells;
+}
+
+function isMineCell(state, q, r) {
+  return state.mines.some(m => hex.cubeDistance({ q, r }, m) <= MINE_RADIUS);
+}
+
+function towerOfMine(state, mine) {
+  return Object.values(state.units).find(u =>
+    u.isTower && u.mineId === mine.id && isAlive(u) && u.q === mine.q && u.r === mine.r
+  ) || null;
+}
+
+/** Proprietaire de la mine, calcule a chaque appel (jamais stocke) : le
+ * joueur de camp pour une mine de camp, sinon le proprietaire de la tour
+ * vivante. */
+function mineOwnerId(state, mine) {
+  if (mine.homeOwnerId) {
+    const p = state.players[mine.homeOwnerId];
+    return p && !p.eliminated ? mine.homeOwnerId : null;
+  }
+  const tower = towerOfMine(state, mine);
+  return tower ? tower.ownerId : null;
+}
+
+/** Zone sure : la mine est controlee et n'a pas ete "troublee" depuis (voir
+ * markAggressionNearMines). unsafeOwnerId evite de garder un etat obsolete
+ * quand la mine change de main. */
+function isMineSafe(state, mine) {
+  const owner = mineOwnerId(state, mine);
+  return !!owner && mine.unsafeOwnerId !== owner;
+}
+
+function isInSafeZone(state, unit) {
+  return state.mines.some(m =>
+    mineOwnerId(state, m) === unit.ownerId && isMineSafe(state, m) &&
+    hex.cubeDistance(unit, m) <= SAFE_RADIUS
+  );
+}
+
+/** Une attaque ennemie contre une unite situee a cote (SAFE_RADIUS + 1) d'une
+ * mine controlee par la victime rend la zone non sure : le bonus de
+ * deplacement s'arrete immediatement. Elle redevient sure au debut du tour
+ * de son proprietaire s'il n'y a plus d'ennemi dans la zone. */
+function markAggressionNearMines(state, attacker, victim) {
+  if (!attacker || !victim || attacker.ownerId === victim.ownerId) return;
+  for (const mine of state.mines) {
+    if (mineOwnerId(state, mine) !== victim.ownerId) continue;
+    if (hex.cubeDistance(victim, mine) > SAFE_RADIUS + 1) continue;
+    if (mine.unsafeOwnerId !== victim.ownerId) {
+      mine.unsafeOwnerId = victim.ownerId;
+      addLog(state, `Une zone sure de ${state.players[victim.ownerId].name} n'est plus sure.`);
+    }
+  }
+}
+
+function restoreSafeZones(state, playerId) {
+  for (const mine of state.mines) {
+    if (mine.unsafeOwnerId !== playerId) continue;
+    const enemyNear = Object.values(state.units).some(u =>
+      isAlive(u) && u.ownerId !== playerId && hex.cubeDistance(u, mine) <= SAFE_RADIUS
+    );
+    if (!enemyNear) mine.unsafeOwnerId = null;
+  }
+}
+
+/** Debut de tour : chaque mine controlee donne un quart de mana max (sauf si
+ * une unite a ete deployee a cote de sa tour au tour precedent). 4 quarts =
+ * +1 de limite de mana definitive. */
+function collectMineQuarters(state, player) {
+  let gained = 0;
+  for (const mine of state.mines) {
+    if (mineOwnerId(state, mine) !== player.id) continue;
+    const tower = towerOfMine(state, mine);
+    if (tower && tower.skipQuarter) { tower.skipQuarter = false; continue; }
+    gained++;
+  }
+  player.quarters += gained;
+  while (player.quarters >= QUARTERS_PER_MANA && player.maxMana < MAX_MANA) {
+    player.quarters -= QUARTERS_PER_MANA;
+    player.maxMana += 1;
+    addLog(state, `${player.name} augmente sa limite de mana a ${player.maxMana}.`);
+  }
+  if (player.maxMana >= MAX_MANA) player.quarters = Math.min(player.quarters, QUARTERS_PER_MANA - 1);
+}
+
+/** Un Ouvrier qui est reste un tour complet au centre d'une mine (marque a
+ * son arrivee, valide au debut du tour suivant de son proprietaire) devient
+ * une tour d'ouvrier. */
+function completeWorkerSettling(state, playerId) {
+  for (const unit of Object.values(state.units)) {
+    if (unit.ownerId !== playerId || !unit.settlingMineId || !isAlive(unit)) continue;
+    const mine = state.mines.find(m => m.id === unit.settlingMineId);
+    delete unit.settlingMineId;
+    if (!mine || mine.homeOwnerId || unit.q !== mine.q || unit.r !== mine.r) continue;
+    delete state.units[unit.id];
+    const tower = makeTower(unit.ownerId, unit.side, mine);
+    state.units[tower.id] = tower;
+    addLog(state, `${state.players[playerId].name} construit une tour et domine une mine.`);
+  }
+}
+
+/** Marque (ou annule) l'installation d'un Ouvrier apres un deplacement. */
+function updateWorkerSettling(state, unit) {
+  delete unit.settlingMineId;
+  if (!unit.isWorker) return;
+  const mine = state.mines.find(m => !m.homeOwnerId && m.q === unit.q && m.r === unit.r);
+  if (mine && !towerOfMine(state, mine)) unit.settlingMineId = mine.id;
+}
+
+/** Reduction de degats subis par `unit` (ex : Noyau celeste) : multiplicateur
+ * 1 - reduction, jamais cumulee (on retient la meilleure aura alliee). */
+function damageMultiplier(state, unit) {
+  let best = 0;
+  for (const u of Object.values(state.units)) {
+    if (!u.aura || !isAlive(u) || u.ownerId !== unit.ownerId) continue;
+    if (hex.cubeDistance(u, unit) <= u.aura.radius) best = Math.max(best, u.aura.damageReduction);
+  }
+  return 1 - best;
 }
 
 function occupiedSet(state, excludeUnitId) {
@@ -398,12 +593,18 @@ function playCard(state, playerId, instanceId, q, r) {
   const card = cardsById[player.hand[cardIndex].cardId];
   if (!card) throw new Error("Cette carte est un sort, pas une unite.");
 
-  if (!canAfford(state, player, card.cost)) throw new Error("Mana insuffisant.");
-  const zone = state.boardConfig.deployZone(player.side);
-  if (!zone.some(c => c.q === q && c.r === r)) throw new Error("Case de deploiement invalide.");
+  assertCanPayCard(state, player, card.cost);
+  const inBaseZone = state.boardConfig.deployZone(player.side).some(c => c.q === q && c.r === r);
+  const adjacentTowers = Object.values(state.units).filter(u =>
+    u.isTower && u.ownerId === playerId && isAlive(u) && hex.cubeDistance(u, { q, r }) === 1
+  );
+  if (!inBaseZone && adjacentTowers.length === 0) throw new Error("Case de deploiement invalide.");
   if (unitAt(state, q, r)) throw new Error("Case deja occupee.");
 
   spendMana(state, player, card.cost);
+  // Deploiement avance (a cote d'une tour) : le prochain quart de mana de
+  // cette mine n'est pas mine.
+  if (!inBaseZone) adjacentTowers.forEach(t => { t.skipQuarter = true; });
   // Bac a sable : la carte n'est jamais retiree de la main (rejouable a l'infini,
   // aucune nouvelle carte n'est creee pour autant).
   if (!state.options.sandbox) player.hand.splice(cardIndex, 1);
@@ -428,6 +629,7 @@ function moveUnit(state, playerId, unitId, q, r) {
   unit.q = q;
   unit.r = r;
   unit.hasMoved = true;
+  updateWorkerSettling(state, unit);
 
   const triggeredTraps = triggerTrapsAlongPath(state, unit, path);
   return { unit, path, triggeredTraps };
@@ -449,7 +651,8 @@ function applySplashIfAny(state, attacker, target, damageDealt) {
   const splash = card && card.splash;
   if (!splash) return [];
 
-  const splashAmount = Math.max(1, Math.round(damageDealt * splash.percent));
+  const baseSplash = damageDealt * splash.percent;
+  const splashAmount = Math.max(1, Math.round(baseSplash));
   const nearby = Object.values(state.units).filter(u =>
     u.id !== target.id && u.id !== attacker.id && isAlive(u) &&
     hex.cubeDistance(u, target) <= splash.radius
@@ -457,8 +660,9 @@ function applySplashIfAny(state, attacker, target, damageDealt) {
 
   const hits = [];
   for (const u of nearby) {
-    u.health = Math.max(0, u.health - splashAmount);
-    hits.push({ unit: u, damage: splashAmount });
+    const damage = scaleDamage(baseSplash, damageMultiplier(state, u));
+    u.health = Math.max(0, u.health - damage);
+    hits.push({ unit: u, damage });
   }
   if (hits.length > 0) {
     addLog(state, `${attacker.name} inflige des degats de zone (${splashAmount}) a ${hits.length} unite(s).`);
@@ -499,10 +703,11 @@ function attackUnit(state, playerId, attackerId, targetId) {
   if (!inRange(attacker, target)) throw new Error("Cible hors de portee.");
   assertValidAttackTarget(state, attacker, target);
 
-  const result = resolveAttack(attacker, target);
+  const result = resolveAttack(attacker, target, damageMultiplier(state, target));
   attacker.hasAttacked = true;
   revealFromInvisibility(attacker); // attaquer revele toujours l'attaquant
   addLog(state, `${attacker.name} attaque ${target.name} (${result.damage} degats).`);
+  markAggressionNearMines(state, attacker, target);
 
   const splashHits = applySplashIfAny(state, attacker, target, result.damage);
 
@@ -518,8 +723,9 @@ function attackUnit(state, playerId, attackerId, targetId) {
   // atteindre l'attaquant avec SA propre portee.
   let retaliation = null;
   if (state.options.retaliate && isAlive(target) && isAlive(attacker) && canRetaliate(target, attacker)) {
-    retaliation = resolveAttack(target, attacker);
+    retaliation = resolveAttack(target, attacker, damageMultiplier(state, attacker));
     addLog(state, `${target.name} riposte contre ${attacker.name} (${retaliation.damage} degats).`);
+    markAggressionNearMines(state, target, attacker);
     handlePotentialChampionDeath(state, attacker);
     pruneIfDead(state, attacker);
   }
@@ -585,10 +791,11 @@ function resolveCharge(state, player, caster, ability, target) {
 
   const triggeredTraps = triggerTrapsAlongPath(state, caster, path);
 
-  const result = resolveAttack(caster, target);
+  const result = resolveAttack(caster, target, damageMultiplier(state, target));
   caster.hasAttacked = true;
   revealFromInvisibility(caster); // charger revele toujours l'attaquant
   addLog(state, `${caster.name} charge ${target.name} (${result.damage} degats).`);
+  markAggressionNearMines(state, caster, target);
 
   const splashHits = applySplashIfAny(state, caster, target, result.damage);
   handlePotentialChampionDeath(state, target);
@@ -600,8 +807,9 @@ function resolveCharge(state, player, caster, ability, target) {
 
   let retaliation = null;
   if (state.options.retaliate && isAlive(target) && isAlive(caster) && canRetaliate(target, caster)) {
-    retaliation = resolveAttack(target, caster);
+    retaliation = resolveAttack(target, caster, damageMultiplier(state, caster));
     addLog(state, `${target.name} riposte contre ${caster.name} (${retaliation.damage} degats).`);
+    markAggressionNearMines(state, target, caster);
     handlePotentialChampionDeath(state, caster);
     pruneIfDead(state, caster);
   }
@@ -632,8 +840,9 @@ function resolvePerforation(state, caster, target, ability) {
     const unit = unitAt(state, cell.q, cell.r);
     if (!unit) continue;
     if (unit.ownerId === caster.ownerId) continue; // allies epargnes
-    const damage = Math.max(1, ability.effect.amount - effectiveDefense(unit));
+    const damage = scaleDamage(ability.effect.amount - effectiveDefense(unit), damageMultiplier(state, unit));
     unit.health = Math.max(0, unit.health - damage);
+    markAggressionNearMines(state, caster, unit);
     hits.push({ unit, damage });
   }
   return hits;
@@ -691,8 +900,9 @@ function useAbility(state, playerId, casterId, abilityId, targetId) {
     return { type: "piercing", hits: hits.map(h => ({ unitId: h.unit.id, damage: h.damage })) };
   }
 
-  const result = applyAbilityEffect(ability, caster, target);
+  const result = applyAbilityEffect(ability, caster, target, damageMultiplier(state, target));
   addLog(state, `${caster.name} utilise ${ability.name}.`);
+  if (ability.targetType === "enemy") markAggressionNearMines(state, caster, target);
 
   handlePotentialChampionDeath(state, target);
   pruneIfDead(state, target);
@@ -707,7 +917,7 @@ function castSpell(state, playerId, instanceId, targetId, targetCell) {
   const cardId = player.hand[handIndex].cardId;
   const spell = spellsById[cardId];
   if (!spell) throw new Error("Cette carte n'est pas un sort.");
-  if (!canAfford(state, player, spell.cost)) throw new Error("Mana insuffisant.");
+  assertCanPayCard(state, player, spell.cost);
   if (!usage.canUse(player.cardUses, cardId, spell.uses)) {
     throw new Error("Nombre d'utilisations maximum atteint pour ce sort.");
   }
@@ -724,6 +934,9 @@ function castSpell(state, playerId, instanceId, targetId, targetCell) {
       throw new Error("Case cible invalide.");
     }
     cell = { q: targetCell.q, r: targetCell.r };
+    if (spell.effect.type === "trap" && isMineCell(state, cell.q, cell.r)) {
+      throw new Error("Impossible de poser un piege sur une mine.");
+    }
   }
 
   // Le mana et la carte ne sont consommes qu'une fois la cible validee :
@@ -741,7 +954,7 @@ function castSpell(state, playerId, instanceId, targetId, targetCell) {
   const effect = spell.effect;
   let result;
   if (effect.type === "damage") {
-    result = spells.applyDamage(target, effect.amount);
+    result = spells.applyDamage(target, effect.amount, damageMultiplier(state, target));
     handlePotentialChampionDeath(state, target);
     pruneIfDead(state, target);
   } else if (effect.type === "heal") {
@@ -861,8 +1074,13 @@ function forfeit(state, playerId) {
 
 function beginTurnSideEffects(state, playerId) {
   const player = state.players[playerId];
-  player.maxMana = Math.min(MAX_MANA, player.maxMana + 1);
-  player.mana = player.maxMana;
+  // Les mines se resolvent AVANT le gain de mana : une limite qui vient de
+  // monter rapporte immediatement plus de mana. Le mana non depense est
+  // conserve d'un tour a l'autre (dans la limite de manaCap).
+  completeWorkerSettling(state, playerId);
+  restoreSafeZones(state, playerId);
+  collectMineQuarters(state, player);
+  player.mana = Math.min(manaCap(player), player.mana + player.maxMana);
   drawCard(state, playerId);
   usage.resetTurnCounters(player.cardUses);
 
@@ -946,6 +1164,8 @@ function serializeForPlayer(state, viewerId) {
       deckName: p.deckName,
       mana: p.mana,
       maxMana: p.maxMana,
+      manaCap: manaCap(p),
+      quarters: p.quarters,
       handCount: p.hand.length,
       deckCount: p.deck.length,
       graveyardCount: p.graveyard.length,
@@ -980,6 +1200,36 @@ function serializeForPlayer(state, viewerId) {
     .filter(t => t.ownerId === viewerId)
     .map(t => ({ id: t.id, q: t.q, r: t.r }));
 
+  const mines = state.mines.map(m => {
+    const owner = mineOwnerId(state, m);
+    return {
+      id: m.id, q: m.q, r: m.r,
+      home: !!m.homeOwnerId,
+      ownerId: owner,
+      safe: isMineSafe(state, m),
+      zone: mineCells(state.boardConfig, m),
+      safeRadius: SAFE_RADIUS
+    };
+  });
+
+  // Cases de deploiement du joueur : sa zone de camp + cases libres a cote de
+  // ses tours d'ouvrier (deploiement avance, voir playCard).
+  const viewer = state.players[viewerId];
+  let deployCells = [];
+  if (viewer && viewer.side) {
+    const base = state.boardConfig.deployZone(viewer.side);
+    const keys = new Set(base.map(c => hex.key(c.q, c.r)));
+    const advanced = [];
+    for (const t of Object.values(state.units)) {
+      if (!t.isTower || t.ownerId !== viewerId || !isAlive(t)) continue;
+      for (const n of state.boardConfig.neighbors(t.q, t.r)) {
+        const k = hex.key(n.q, n.r);
+        if (!keys.has(k)) { keys.add(k); advanced.push(n); }
+      }
+    }
+    deployCells = base.map(c => ({ ...c, advanced: false })).concat(advanced.map(c => ({ ...c, advanced: true })));
+  }
+
   return {
     code: state.code,
     status: state.status,
@@ -994,6 +1244,8 @@ function serializeForPlayer(state, viewerId) {
     units,
     mudCells: Array.from(state.mudCells),
     traps,
+    mines,
+    deployCells,
     board: { cols: state.boardConfig.cols, rows: state.boardConfig.rows, seats: state.boardConfig.seats },
     winnerId: state.winnerId,
     log: state.log.slice(-15),

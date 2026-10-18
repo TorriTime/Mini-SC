@@ -3,7 +3,8 @@
 // L'effet "draw" est gere directement dans gameState.js car il a besoin
 // d'acceder a la pioche/main du joueur, pas seulement a une unite.
 
-function applyDamage(target, amount) {
+function applyDamage(target, amount, damageMultiplier = 1) {
+  amount = Math.max(1, Math.round(amount * damageMultiplier));
   target.health = Math.max(0, target.health - amount);
   return { type: "damage", amount, targetKO: target.health <= 0 };
 }

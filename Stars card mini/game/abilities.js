@@ -2,7 +2,7 @@
 // Systeme volontairement restreint a 5 types d'effets.
 
 const { cubeDistance } = require("./hexGrid");
-const { effectiveDefense } = require("./combat");
+const { effectiveDefense, scaleDamage } = require("./combat");
 
 function inAbilityRange(caster, targetCell, range) {
   if (range === 0) return true; // effet sur soi-meme
@@ -15,13 +15,13 @@ function inAbilityRange(caster, targetCell, range) {
  * target: unite ciblee (peut etre === caster pour les effets "self")
  * Retourne un petit rapport utilisable pour les logs / sync client.
  */
-function applyAbilityEffect(ability, caster, target) {
+function applyAbilityEffect(ability, caster, target, damageMultiplier = 1) {
   const effect = ability.effect;
 
   switch (effect.type) {
     case "damage": {
       const defense = effectiveDefense(target);
-      const damage = Math.max(1, effect.amount - defense);
+      const damage = scaleDamage(effect.amount - defense, damageMultiplier);
       target.health = Math.max(0, target.health - damage);
       return { type: "damage", amount: damage, targetKO: target.health <= 0 };
     }

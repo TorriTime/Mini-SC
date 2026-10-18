@@ -8,6 +8,23 @@
 
 module.exports = [
   {
+    version: "0.5",
+    title: "Refonte du gameplay : mines, mana et zones sures",
+    changes: [
+      "Le mana est toujours gagne a chaque debut de tour et conserve d'un tour a l'autre s'il n'est pas depense.",
+      "La limite de mana (cout maximum d'une carte) ne grandit plus avec les tours : il faut controler des mines.",
+      "7 mines neutres sur le plateau (2 pres de chaque camp, 3 alignees au centre) en plus de la mine de chaque camp.",
+      "Une mine est une zone : un Ouvrier qui reste un tour complet en son centre y cree une tour. Detruire la tour stoppe instantanement la domination.",
+      "Chaque mine controlee donne un quart de mana max par tour ; 4 quarts = +1 de limite de mana definitive.",
+      "Le mana additionnel recouvre du mana : on peut depenser plus que sa limite en une fois, mais jamais une carte plus chere que sa limite.",
+      "Deploiement possible a cote des tours d'ouvrier, au prix du prochain quart de mana de cette mine. Les unites deployees ne coutent plus de mana supplementaire.",
+      "Zones sures autour des mines controlees : toutes les unites y ont au moins 2 de deplacement. Une attaque ennemie sur une unite alliee a cote de la mine suspend le bonus.",
+      "Les pieges ne peuvent plus etre poses sur les mines.",
+      "Plateau a 2 joueurs passe a 11 lignes pour que le centre soit symetrique.",
+      "Nouvelles cartes : Ouvrier, Noyau celeste, Gobelin provocateur."
+    ]
+  },
+  {
     version: "0.4",
     title: "Correctifs multijoueur, decks sauvegardes et competences",
     changes: [
