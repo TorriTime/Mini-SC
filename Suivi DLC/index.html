@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Suivi DLC</title>
+<style>
+  :root{
+    --bg:#f5f7f4; --card:#fff; --ink:#1f2a24; --muted:#6b776f; --line:#dfe6e0;
+    --green:#2f7d4f; --green-d:#22603c;
+    --red:#c0392b; --red-bg:#fdeceb;
+    --orange:#d9731a; --orange-bg:#fff1e3;
+    --amber:#b88a00; --amber-bg:#fff7da;
+    --blue:#2b6cb0; --blue-bg:#e8f1fb;
+    --ok-bg:#eaf5ee;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  header{background:var(--green);color:#fff;padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  header h1{margin:0;font-size:1.2rem;flex:1}
+  header .today{font-size:.85rem;opacity:.9}
+  main{max-width:1000px;margin:0 auto;padding:16px}
+  button,select,input,textarea{font:inherit}
+  .btn{border:1px solid var(--line);background:#fff;color:var(--ink);padding:8px 14px;border-radius:8px;cursor:pointer}
+  .btn:hover{background:#f0f4f1}
+  .btn.primary{background:var(--green);border-color:var(--green);color:#fff;font-weight:600}
+  .btn.primary:hover{background:var(--green-d)}
+  .btn.danger{color:var(--red);border-color:#e8b9b4}
+  .btn.small{padding:5px 10px;font-size:.88rem}
+  header .btn{background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.4);color:#fff}
+  header .btn.primary{background:#fff;color:var(--green-d);border-color:#fff}
+
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px}
+  .stat{background:var(--card);border:2px solid transparent;border-radius:10px;padding:10px 12px;cursor:pointer;text-align:left}
+  .stat b{display:block;font-size:1.6rem;line-height:1.1}
+  .stat span{font-size:.85rem;color:var(--muted)}
+  .stat.active{border-color:var(--green)}
+  .stat.todo b{color:var(--red)}
+
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  .toolbar input,.toolbar select{padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;min-width:0}
+  .toolbar input[type=search]{flex:1 1 180px}
+
+  .list{display:grid;gap:10px}
+  .group-title{margin:14px 0 2px;font-size:.95rem;color:var(--green-d);font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+  .item{background:var(--card);border-left:6px solid var(--line);border-radius:10px;padding:10px 12px;display:grid;grid-template-columns:1fr auto;gap:6px 12px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+  .item.expired,.item.remove{border-left-color:var(--red)}
+  .item.discount{border-left-color:var(--orange)}
+  .item.watch{border-left-color:var(--amber)}
+  .item.ok{border-left-color:#8fc4a2}
+  .item h3{margin:0;font-size:1.05rem}
+  .meta{color:var(--muted);font-size:.88rem;display:flex;gap:6px 14px;flex-wrap:wrap;margin-top:2px}
+  .chip{display:inline-block;padding:2px 9px;border-radius:99px;font-size:.8rem;font-weight:600;white-space:nowrap}
+  .chip.expired,.chip.remove{background:var(--red-bg);color:var(--red)}
+  .chip.discount{background:var(--orange-bg);color:var(--orange)}
+  .chip.watch{background:var(--amber-bg);color:var(--amber)}
+  .chip.ok{background:var(--ok-bg);color:var(--green-d)}
+  .chip.done{background:var(--blue-bg);color:var(--blue)}
+  .right{text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+  .days{font-weight:700}
+  .price{font-size:.88rem}
+  .price s{color:var(--muted)}
+  .actions{grid-column:1/-1;display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+  .empty{text-align:center;color:var(--muted);padding:40px 10px;background:var(--card);border-radius:10px}
+
+  dialog{border:none;border-radius:14px;padding:0;width:min(560px,calc(100vw - 24px));max-height:calc(100vh - 24px);box-shadow:0 10px 40px rgba(0,0,0,.3)}
+  dialog::backdrop{background:rgba(0,0,0,.4)}
+  dialog form,.dlg{padding:18px;display:grid;gap:12px}
+  dialog h2{margin:0;font-size:1.15rem}
+  label{display:grid;gap:4px;font-size:.88rem;color:var(--muted);font-weight:600}
+  label input,label select,label textarea{padding:9px 10px;border:1px solid var(--line);border-radius:8px;color:var(--ink);font-weight:400;width:100%;background:#fff}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  .dlg-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:4px}
+  .preview{padding:8px 12px;border-radius:8px;background:var(--ok-bg);font-size:.9rem}
+  fieldset{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:0}
+  legend{font-weight:700;font-size:.9rem;padding:0 6px}
+  .edit-row{display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap}
+  .edit-row input{padding:6px 8px;border:1px solid var(--line);border-radius:8px;min-width:0}
+  .edit-row input[type=number]{width:80px}
+  .hint{font-size:.82rem;color:var(--muted);margin:4px 0 0}
+
+  #toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:10px;display:none;gap:12px;align-items:center;z-index:50;max-width:92vw}
+  #toast button{background:none;border:none;color:#9be0b4;font-weight:700;cursor:pointer}
+
+  @media (max-width:520px){ .row3{grid-template-columns:1fr 1fr} .item{grid-template-columns:1fr} .right{text-align:left;align-items:flex-start;flex-direction:row;gap:10px;flex-wrap:wrap} }
+  @media print{
+    header .btn,.stats,.toolbar,.actions,#toast{display:none!important}
+    body{background:#fff} .item{box-shadow:none;border:1px solid #ccc;break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>🌿 Suivi DLC</h1>
+  <span class="today" id="today"></span>
+  <button class="btn" id="btnSettings">⚙️ Réglages</button>
+  <button class="btn primary" id="btnAdd">＋ Produit</button>
+</header>
+
+<main>
+  <div class="stats" id="stats"></div>
+
+  <div class="toolbar">
+    <input type="search" id="q" placeholder="Rechercher un produit…">
+    <select id="fRayon"></select>
+    <select id="sort">
+      <option value="route">Tri : parcours du rayon</option>
+      <option value="date">Tri : date limite</option>
+      <option value="name">Tri : nom</option>
+    </select>
+    <button class="btn" id="btnPrint" title="Imprimer la liste affichée">🖨️</button>
+  </div>
+
+  <div class="list" id="list"></div>
+</main>
+
+<!-- Fiche produit -->
+<dialog id="dlgProduct">
+  <form id="formProduct" method="dialog">
+    <h2 id="prodTitle">Nouveau produit</h2>
+    <label>Nom du produit
+      <input id="pName" required placeholder="Ex : Yaourt nature bio 4×125g" autocomplete="off">
+    </label>
+    <div class="row">
+      <label>Rayon <select id="pRayon" required></select></label>
+      <label>Code-barres (facultatif) <input id="pEan" inputmode="numeric" autocomplete="off"></label>
+    </div>
+    <div class="row3">
+      <label>Sens dans le rayon
+        <select id="pSens"><option>Début</option><option>Milieu</option><option>Fin</option></select>
+      </label>
+      <label>Niveau
+        <select id="pNiveau"><option>Haut</option><option>Milieu</option><option>Bas</option></select>
+      </label>
+      <label>Précision (facultatif)
+        <input id="pLoc" placeholder="Gondole 3, frigo 2…" autocomplete="off">
+      </label>
+    </div>
+    <div class="row3">
+      <label>Date limite (DLC/DDM)
+        <input id="pDate" type="date" required>
+      </label>
+      <label>Quantité
+        <input id="pQty" type="number" min="1" value="1">
+      </label>
+      <label>Prix € (facultatif)
+        <input id="pPrice" type="number" min="0" step="0.01" inputmode="decimal">
+      </label>
+    </div>
+    <div class="preview" id="pPreview"></div>
+    <div class="dlg-actions">
+      <button type="button" class="btn" id="pCancel">Annuler</button>
+      <button type="button" class="btn" id="pSaveNext">Enregistrer + suivant</button>
+      <button type="submit" class="btn primary">Enregistrer</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Réglages -->
+<dialog id="dlgSettings">
+  <div class="dlg">
+    <h2>Réglages</h2>
+
+    <fieldset>
+      <legend>Règles de démarque</legend>
+      <div id="tiersEdit"></div>
+      <button class="btn small" id="addTier" type="button">＋ Ajouter un palier</button>
+      <p class="hint">« À partir de X jours avant la date limite → -Y % ». 0 % = simple surveillance, 100 % = retirer du rayon. Un produit périmé est toujours à retirer.</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Rayons</legend>
+      <div id="rayonsEdit"></div>
+      <div class="edit-row">
+        <input id="newRayon" placeholder="Nouveau rayon…" style="flex:1">
+        <button class="btn small" id="addRayon" type="button">Ajouter</button>
+      </div>
+      <p class="hint">L'ordre ici est l'ordre de passage dans « parcours du rayon ».</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Données</legend>
+      <div class="edit-row">
+        <button class="btn small" id="btnCsv" type="button">Exporter en CSV (Excel)</button>
+        <button class="btn small" id="btnJson" type="button">Sauvegarde (JSON)</button>
+        <button class="btn small" id="btnImport" type="button">Restaurer une sauvegarde</button>
+        <input type="file" id="fileImport" accept=".json,application/json" hidden>
+      </div>
+      <p class="hint">Les données sont enregistrées dans ce navigateur, sur cet appareil. Faites une sauvegarde de temps en temps.</p>
+    </fieldset>
+
+    <div class="dlg-actions">
+      <button class="btn primary" id="settingsClose" type="button">Terminé</button>
+    </div>
+  </div>
+</dialog>
+
+<div id="toast"><span id="toastMsg"></span><button id="toastUndo">Annuler</button></div>
+
+<script>
+(() => {
+  'use strict';
+  const KEY = 'suivi-dlc-v1';
+  const DEFAULT_RAYONS = ['Frais / Crèmerie','Fromage','Charcuterie / Traiteur','Surgelés','Épicerie salée','Épicerie sucrée','Boissons','Pain / Boulangerie','Fruits & légumes','Compléments / Bien-être'];
+  const DEFAULT_TIERS = [ {days:30,pct:0}, {days:15,pct:30}, {days:7,pct:50}, {days:2,pct:100} ];
+  const SENS = ['Début','Milieu','Fin'], NIVEAU = ['Haut','Milieu','Bas'];
+
+  let db = load();
+  let filterStatus = 'all';
+  let undoFn = null, toastTimer = null;
+
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  /* ---------- stockage ---------- */
+  function load(){
+    try{
+      const d = JSON.parse(localStorage.getItem(KEY));
+      if(d && Array.isArray(d.products)) return { products:d.products, rayons:d.rayons?.length?d.rayons:[...DEFAULT_RAYONS], tiers:d.tiers?.length?d.tiers:structuredClone(DEFAULT_TIERS) };
+    }catch(e){}
+    return { products:[], rayons:[...DEFAULT_RAYONS], tiers:structuredClone(DEFAULT_TIERS) };
+  }
+  function save(){ try{ localStorage.setItem(KEY, JSON.stringify(db)); }catch(e){ toast('⚠️ Enregistrement impossible dans ce navigateur'); } }
+  const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+
+  /* ---------- dates & statuts ---------- */
+  function todayUTC(){ const n=new Date(); return Date.UTC(n.getFullYear(),n.getMonth(),n.getDate()); }
+  function daysLeft(iso){ const [y,m,d]=iso.split('-').map(Number); return Math.round((Date.UTC(y,m-1,d)-todayUTC())/86400000); }
+  const fmtDate = iso => { const [y,m,d]=iso.split('-'); return `${d}/${m}/${y}`; };
+  const sortedTiers = () => [...db.tiers].sort((a,b)=>a.days-b.days);
+
+  // état d'un produit : key = expired | remove | discount | watch | ok
+  function info(p){
+    const d = daysLeft(p.date);
+    if(d<0) return {d, key:'expired', pct:100, label:'Périmé', todo:true};
+    const t = sortedTiers().find(t=>d<=t.days);
+    if(!t) return {d, key:'ok', pct:0, label:'OK', todo:false};
+    if(t.pct>=100) return {d, key:'remove', pct:100, label:'À retirer', todo:true};
+    if(t.pct<=0) return {d, key:'watch', pct:0, label:'À surveiller', todo:false};
+    const done = (p.marked||0) >= t.pct;
+    return {d, key:'discount', pct:t.pct, label:`-${t.pct}%`, todo:!done, done};
+  }
+  const dayText = d => d<0 ? `périmé depuis ${-d} j` : d===0 ? "aujourd'hui" : d===1 ? 'demain' : `dans ${d} j`;
+  const money = n => n.toFixed(2).replace('.',',')+' €';
+
+  /* ---------- rendu ---------- */
+  function render(){
+    $('today').textContent = new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+    // select rayons du filtre
+    const fr = $('fRayon'), cur = fr.value;
+    fr.innerHTML = '<option value="">Tous les rayons</option>' + db.rayons.map(r=>`<option>${esc(r)}</option>`).join('');
+    fr.value = db.rayons.includes(cur)?cur:'';
+
+    const all = db.products.map(p=>({p, i:info(p)}));
+    const counts = {
+      todo: all.filter(x=>x.i.todo).length,
+      done: all.filter(x=>x.i.done).length,
+      watch: all.filter(x=>x.i.key==='watch').length,
+      ok: all.filter(x=>x.i.key==='ok').length,
+      all: all.length
+    };
+    const defs = [['todo','À traiter','todo'],['done','Déjà démarqués',''],['watch','À surveiller',''],['ok','Pas concernés',''],['all','Tous','']];
+    $('stats').innerHTML = defs.map(([k,l,c])=>`<button class="stat ${c} ${filterStatus===k?'active':''}" data-s="${k}"><b>${counts[k]}</b><span>${l}</span></button>`).join('');
+
+    const q = $('q').value.trim().toLowerCase(), rf = fr.value, sort = $('sort').value;
+    let rows = all.filter(({p,i})=>{
+      if(rf && p.rayon!==rf) return false;
+      if(q && !(p.name+' '+(p.ean||'')+' '+(p.loc||'')).toLowerCase().includes(q)) return false;
+      if(filterStatus==='todo') return i.todo;
+      if(filterStatus==='done') return i.done;
+      if(filterStatus==='watch') return i.key==='watch';
+      if(filterStatus==='ok') return i.key==='ok';
+      return true;
+    });
+    const rIdx = r => { const k=db.rayons.indexOf(r); return k<0?999:k; };
+    const cmpRoute = (a,b)=> rIdx(a.p.rayon)-rIdx(b.p.rayon) || SENS.indexOf(a.p.sens)-SENS.indexOf(b.p.sens) || NIVEAU.indexOf(a.p.niveau)-NIVEAU.indexOf(b.p.niveau) || a.p.date.localeCompare(b.p.date);
+    if(sort==='route') rows.sort(cmpRoute);
+    else if(sort==='date') rows.sort((a,b)=>a.p.date.localeCompare(b.p.date)||a.p.name.localeCompare(b.p.name));
+    else rows.sort((a,b)=>a.p.name.localeCompare(b.p.name,'fr'));
+
+    if(!rows.length){
+      $('list').innerHTML = db.products.length
+        ? `<div class="empty">Aucun produit dans cette vue.</div>`
+        : `<div class="empty">Aucun produit pour l'instant.<br><br><button class="btn primary" data-act="new">＋ Ajouter un produit</button> <button class="btn" data-act="demo">Charger des exemples</button></div>`;
+      return;
+    }
+    let html = '', lastGroup = null;
+    for(const {p,i} of rows){
+      if(sort==='route' && p.rayon!==lastGroup){ lastGroup=p.rayon; html += `<div class="group-title">${esc(p.rayon)}</div>`; }
+      const loc = `${esc(p.sens)} · ${esc(p.niveau)}` + (p.loc?` · ${esc(p.loc)}`:'');
+      let chip = `<span class="chip ${i.key}">${esc(i.label)}</span>`;
+      if(i.key==='discount') chip = i.done ? `<span class="chip done">✔ -${i.pct}% fait</span>` : `<span class="chip discount">À démarquer -${i.pct}%</span>`;
+      let price = '';
+      if(p.price>0){
+        const eff = i.key==='discount' ? p.price*(1-i.pct/100) : null;
+        price = eff!==null ? `<span class="price"><s>${money(p.price)}</s> → <b>${money(eff)}</b></span>` : `<span class="price">${money(p.price)}</span>`;
+      }
+      let btns = '';
+      if(i.key==='discount' && !i.done) btns += `<button class="btn small primary" data-act="mark" data-id="${p.id}">✔ -${i.pct}% appliqué</button>`;
+      if(i.key==='expired'||i.key==='remove') btns += `<button class="btn small primary" data-act="remove" data-id="${p.id}">🗑 Retiré</button>`;
+      else btns += `<button class="btn small" data-act="remove" data-id="${p.id}">Vendu / retiré</button>`;
+      btns += `<button class="btn small" data-act="edit" data-id="${p.id}">Modifier</button>`;
+      html += `<div class="item ${i.key}">
+        <div><h3>${esc(p.name)}</h3>
+          <div class="meta"><span>📍 ${loc}</span>${p.qty>1?`<span>×${p.qty}</span>`:''}${p.ean?`<span>${esc(p.ean)}</span>`:''}</div></div>
+        <div class="right">${chip}<span class="days">${fmtDate(p.date)}</span><span class="meta" style="margin:0">${dayText(i.d)}</span>${price}</div>
+        <div class="actions">${btns}</div></div>`;
+    }
+    $('list').innerHTML = html;
+  }
+
+  /* ---------- toast / annuler ---------- */
+  function toast(msg, undo){
+    $('toastMsg').textContent = msg; undoFn = undo||null;
+    $('toastUndo').style.display = undo?'':'none';
+    $('toast').style.display='flex';
+    clearTimeout(toastTimer); toastTimer=setTimeout(()=>{$('toast').style.display='none';undoFn=null},5000);
+  }
+  $('toastUndo').onclick = ()=>{ if(undoFn){undoFn();} $('toast').style.display='none'; undoFn=null; };
+
+  /* ---------- fiche produit ---------- */
+  let editingId = null;
+  function fillRayonSelect(sel, val){
+    sel.innerHTML = db.rayons.map(r=>`<option>${esc(r)}</option>`).join('');
+    if(val && db.rayons.includes(val)) sel.value = val;
+  }
+  function openProduct(id, keep){
+    editingId = id||null;
+    const p = id ? db.products.find(x=>x.id===id) : null;
+    $('prodTitle').textContent = p ? 'Modifier le produit' : 'Nouveau produit';
+    fillRayonSelect($('pRayon'), p?.rayon || keep?.rayon || $('fRayon').value);
+    $('pName').value = p?.name || '';
+    $('pEan').value = p?.ean || '';
+    $('pSens').value = p?.sens || keep?.sens || 'Début';
+    $('pNiveau').value = p?.niveau || keep?.niveau || 'Milieu';
+    $('pLoc').value = p?.loc ?? keep?.loc ?? '';
+    $('pDate').value = p?.date || '';
+    $('pQty').value = p?.qty || 1;
+    $('pPrice').value = p?.price || '';
+    $('pSaveNext').style.display = p ? 'none' : '';
+    updatePreview();
+    if(!$('dlgProduct').open) $('dlgProduct').showModal();
+    $('pName').focus();
+  }
+  function updatePreview(){
+    const v = $('pDate').value;
+    if(!v){ $('pPreview').textContent='Choisissez la date limite pour voir l\'action à faire.'; return; }
+    const i = info({date:v, marked:0});
+    const t = sortedTiers();
+    let txt = `${fmtDate(v)} — ${dayText(i.d)}. `;
+    if(i.key==='expired') txt += 'Déjà périmé : à retirer.';
+    else if(i.key==='remove') txt += 'À retirer du rayon.';
+    else if(i.key==='discount') txt += `À démarquer à -${i.pct}% dès maintenant.`;
+    else if(i.key==='watch') txt += 'À surveiller.';
+    else {
+      const first = t[t.length-1];
+      txt += first ? `Rien à faire pour l'instant (surveillance à partir de J-${first.days}, soit le ${fmtDate(shiftDate(v,-first.days))}).` : 'Rien à faire.';
+    }
+    $('pPreview').textContent = txt;
+  }
+  function shiftDate(iso, delta){
+    const [y,m,d]=iso.split('-').map(Number); const dt=new Date(Date.UTC(y,m-1,d+delta));
+    return dt.toISOString().slice(0,10);
+  }
+  function readForm(){
+    const f = $('formProduct');
+    if(!f.reportValidity()) return null;
+    const old = editingId ? db.products.find(x=>x.id===editingId) : null;
+    const date = $('pDate').value;
+    return {
+      id: editingId || uid(),
+      name: $('pName').value.trim(), ean: $('pEan').value.trim(),
+      rayon: $('pRayon').value, sens: $('pSens').value, niveau: $('pNiveau').value, loc: $('pLoc').value.trim(),
+      date, qty: Math.max(1, parseInt($('pQty').value)||1), price: parseFloat($('pPrice').value)||0,
+      marked: old && old.date===date ? (old.marked||0) : 0   // nouvelle date → on repart de zéro
+    };
+  }
+  function commit(p){
+    const k = db.products.findIndex(x=>x.id===p.id);
+    if(k>=0) db.products[k]=p; else db.products.push(p);
+    save(); render();
+  }
+  $('formProduct').addEventListener('submit', e=>{ e.preventDefault(); const p=readForm(); if(!p) return; commit(p); $('dlgProduct').close(); });
+  $('pSaveNext').onclick = ()=>{ const p=readForm(); if(!p) return; commit(p); toast('✔ Enregistré : '+p.name); openProduct(null,p); };
+  $('pCancel').onclick = ()=>$('dlgProduct').close();
+  $('pDate').addEventListener('input', updatePreview);
+
+  /* ---------- actions de liste ---------- */
+  $('list').addEventListener('click', e=>{
+    const b = e.target.closest('[data-act]'); if(!b) return;
+    const id = b.dataset.id, act = b.dataset.act;
+    const p = db.products.find(x=>x.id===id);
+    if(act==='new') return openProduct();
+    if(act==='demo') return loadDemo();
+    if(act==='edit') return openProduct(id);
+    if(act==='mark' && p){ const prev=p.marked||0; p.marked=info(p).pct; save(); render(); toast(`-${p.marked}% appliqué : ${p.name}`, ()=>{p.marked=prev;save();render();}); }
+    if(act==='remove' && p){ const k=db.products.indexOf(p); db.products.splice(k,1); save(); render(); toast(`Retiré : ${p.name}`, ()=>{db.products.splice(k,0,p);save();render();}); }
+  });
+  $('stats').addEventListener('click', e=>{ const b=e.target.closest('[data-s]'); if(b){ filterStatus=b.dataset.s; render(); } });
+  ['q','fRayon','sort'].forEach(id=>$(id).addEventListener('input', render));
+  $('btnAdd').onclick = ()=>openProduct();
+  $('btnPrint').onclick = ()=>window.print();
+
+  /* ---------- réglages ---------- */
+  function renderSettings(){
+    $('tiersEdit').innerHTML = sortedTiers().map((t,k)=>`
+      <div class="edit-row">
+        À partir de <input type="number" min="0" value="${t.days}" data-tier="${k}" data-f="days"> jours avant →
+        <input type="number" min="0" max="100" value="${t.pct}" data-tier="${k}" data-f="pct"> %
+        <button class="btn small danger" data-deltier="${k}" type="button">✕</button>
+      </div>`).join('') || '<p class="hint">Aucun palier.</p>';
+    $('rayonsEdit').innerHTML = db.rayons.map((r,k)=>`
+      <div class="edit-row">
+        <input value="${esc(r)}" data-ray="${k}" style="flex:1">
+        <button class="btn small" data-up="${k}" type="button" ${k===0?'disabled':''}>↑</button>
+        <button class="btn small" data-down="${k}" type="button" ${k===db.rayons.length-1?'disabled':''}>↓</button>
+        <button class="btn small danger" data-delray="${k}" type="button">✕</button>
+      </div>`).join('');
+  }
+  $('btnSettings').onclick = ()=>{ renderSettings(); $('dlgSettings').showModal(); };
+  $('settingsClose').onclick = ()=>{ $('dlgSettings').close(); render(); };
+  $('dlgSettings').addEventListener('close', render);
+
+  $('tiersEdit').addEventListener('change', e=>{
+    const el = e.target; if(el.dataset.tier===undefined) return;
+    const t = sortedTiers()[+el.dataset.tier];
+    t[el.dataset.f] = Math.max(0, Math.min(el.dataset.f==='pct'?100:9999, parseInt(el.value)||0));
+    save(); renderSettings();
+  });
+  $('tiersEdit').addEventListener('click', e=>{
+    const b = e.target.closest('[data-deltier]'); if(!b) return;
+    const t = sortedTiers()[+b.dataset.deltier]; db.tiers.splice(db.tiers.indexOf(t),1); save(); renderSettings();
+  });
+  $('addTier').onclick = ()=>{ db.tiers.push({days:10,pct:20}); save(); renderSettings(); };
+
+  $('rayonsEdit').addEventListener('change', e=>{
+    const el=e.target; if(el.dataset.ray===undefined) return;
+    const k=+el.dataset.ray, old=db.rayons[k], nv=el.value.trim();
+    if(!nv || (db.rayons.includes(nv)&&nv!==old)){ el.value=old; return; }
+    db.rayons[k]=nv; db.products.forEach(p=>{ if(p.rayon===old) p.rayon=nv; }); save();
+  });
+  $('rayonsEdit').addEventListener('click', e=>{
+    const b=e.target.closest('button'); if(!b) return;
+    const d=b.dataset;
+    if(d.up!==undefined){ const k=+d.up; [db.rayons[k-1],db.rayons[k]]=[db.rayons[k],db.rayons[k-1]]; }
+    else if(d.down!==undefined){ const k=+d.down; [db.rayons[k+1],db.rayons[k]]=[db.rayons[k],db.rayons[k+1]]; }
+    else if(d.delray!==undefined){
+      const r=db.rayons[+d.delray], n=db.products.filter(p=>p.rayon===r).length;
+      if(n){ alert(`Impossible de supprimer « ${r} » : ${n} produit(s) l'utilisent encore.`); return; }
+      db.rayons.splice(+d.delray,1);
+    } else return;
+    save(); renderSettings();
+  });
+  $('addRayon').onclick = ()=>{
+    const v=$('newRayon').value.trim(); if(!v||db.rayons.includes(v)) return;
+    db.rayons.push(v); $('newRayon').value=''; save(); renderSettings();
+  };
+  $('newRayon').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); $('addRayon').click(); } });
+
+  /* ---------- export / import ---------- */
+  function download(name, text, type){
+    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([text],{type})); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  }
+  const stamp = ()=>new Date().toISOString().slice(0,10);
+  $('btnJson').onclick = ()=>download(`suivi-dlc-sauvegarde-${stamp()}.json`, JSON.stringify(db,null,2), 'application/json');
+  $('btnCsv').onclick = ()=>{
+    const cell = v=>`"${String(v??'').replace(/"/g,'""')}"`;
+    const head = ['Produit','Rayon','Sens','Niveau','Précision','Date limite','Jours restants','Statut','Quantité','Prix','Code-barres'];
+    const lines = [head.map(cell).join(';')];
+    db.products.slice().sort((a,b)=>a.date.localeCompare(b.date)).forEach(p=>{
+      const i=info(p);
+      lines.push([p.name,p.rayon,p.sens,p.niveau,p.loc,fmtDate(p.date),i.d,i.label,p.qty,p.price?String(p.price).replace('.',','):'',p.ean].map(cell).join(';'));
+    });
+    download(`suivi-dlc-${stamp()}.csv`, '﻿'+lines.join('\r\n'), 'text/csv;charset=utf-8');
+  };
+  $('btnImport').onclick = ()=>$('fileImport').click();
+  $('fileImport').onchange = async e=>{
+    const f=e.target.files[0]; e.target.value=''; if(!f) return;
+    try{
+      const d=JSON.parse(await f.text());
+      if(!Array.isArray(d.products)) throw 0;
+      if(!confirm('Remplacer toutes les données actuelles par cette sauvegarde ?')) return;
+      db={products:d.products, rayons:d.rayons?.length?d.rayons:[...DEFAULT_RAYONS], tiers:d.tiers?.length?d.tiers:structuredClone(DEFAULT_TIERS)};
+      save(); renderSettings(); render(); toast('Sauvegarde restaurée');
+    }catch(err){ alert('Fichier de sauvegarde invalide.'); }
+  };
+
+  function loadDemo(){
+    const t = n=>shiftDate(new Date(todayUTC()).toISOString().slice(0,10), n);
+    const mk=(name,rayon,sens,niveau,n,price)=>({id:uid(),name,ean:'',rayon,sens,niveau,loc:'',date:t(n),qty:2,price,marked:0});
+    db.products.push(
+      mk('Yaourt nature bio 4×125g','Frais / Crèmerie','Début','Haut',-1,2.49),
+      mk('Camembert bio','Fromage','Milieu','Milieu',1,3.79),
+      mk('Jambon blanc bio 4 tr.','Charcuterie / Traiteur','Fin','Bas',6,4.20),
+      mk('Tofu nature','Frais / Crèmerie','Fin','Milieu',12,2.95),
+      mk('Lait d\'avoine 1L','Boissons','Début','Bas',25,1.99),
+      mk('Muesli croustillant','Épicerie sucrée','Milieu','Haut',90,4.50)
+    );
+    save(); render();
+  }
+
+  render();
+  setInterval(render, 60*60*1000); // le jour change → on rafraîchit
+})();
+</script>
+</body>
+</html>
