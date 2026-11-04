@@ -472,7 +472,7 @@
       const i=info(p);
       lines.push([p.name,p.rayon,p.sens,p.niveau,p.loc,fmtDate(p.date),i.d,i.label,p.qty,p.price?String(p.price).replace('.',','):'',p.ean].map(cell).join(';'));
     });
-    download(`suivi-dlc-${stamp()}.csv`, '﻿'+lines.join('\r\n'), 'text/csv;charset=utf-8');
+    download(`suivi-dlc-${stamp()}.csv`, '\ufeff'+lines.join('\r\n'), 'text/csv;charset=utf-8');
   };
   $('btnImport').onclick = ()=>$('fileImport').click();
   $('fileImport').onchange = async e=>{
