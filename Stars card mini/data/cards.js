@@ -1,4 +1,4 @@
-// Collection de cartes du prototype (~11 cartes).
+// Collection de cartes d'unite du prototype.
 // IMPORTANT : ces donnees sont totalement separees de la logique de jeu.
 // Modifier une carte ici n'implique de toucher aucun fichier dans /game.
 //
@@ -10,9 +10,9 @@
 //                          deckbuilder (public/client.js). Absentes = non
 //                          filtrable sur ce critere, jamais une erreur.
 //   splash: { radius, percent } -- optionnel : degats de zone sur l'attaque
-//                                   de base (voir game/combat.js).
+//                                   de base (voir game/actions/attack.js).
 //   isWorker: true -- optionnel : ouvrier, peut s'installer au centre d'une
-//                     mine pour y creer une tour (voir game/gameState.js).
+//                     mine pour y creer une tour (voir game/mines.js).
 //   aura: { radius, damageReduction } -- optionnel : les troupes ALLIEES a
 //                     `radius` (cette unite incluse) subissent
 //                     `damageReduction` (0.15 = -15%) de degats en moins.

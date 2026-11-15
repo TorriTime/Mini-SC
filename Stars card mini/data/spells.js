@@ -5,11 +5,12 @@
 // Schema d'un sort :
 // {
 //   id, name, type: "spell", cost, targetType, description,
-//   effect: { type: "damage"|"heal"|"draw", amount }
+//   effect: { type: "damage"|"heal"|"draw"|"mud"|"trap", amount }
 // }
 //
 // targetType : "ally" (unite alliee a cibler), "enemy" (unite ennemie a
-// cibler) ou "none" (aucune cible, effet immediat).
+// cibler), "cell" (case du plateau a cibler) ou "none" (aucune cible, effet
+// immediat).
 
 module.exports = [
   {

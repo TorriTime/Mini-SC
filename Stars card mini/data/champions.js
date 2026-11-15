@@ -1,13 +1,12 @@
-// Champions disponibles (2 pour le prototype).
+// Champions disponibles.
 // Un champion est une unite speciale : beaucoup plus de PV, une
 // competence active (voir data/abilities.js) et un passif simple.
 //
-// passive.type gere par la logique de jeu (game/gameState.js / game/combat.js) :
+// passive.type gere par la logique de jeu (game/passives.js) :
 //   "regen"              -> recupere passive.amount PV au debut de son propre tour
 //   "frenzy"             -> inflige +passive.amount degats en attaque quand son
 //                            PV est <= 50% de son PV max
-//   "alternate_movement" -> ne peut se deplacer qu'un tour sur deux (voir
-//                            beginTurnSideEffects dans game/gameState.js) ;
+//   "alternate_movement" -> ne peut se deplacer qu'un tour sur deux ;
 //                            le compteur se base sur les tours DU PROPRIETAIRE,
 //                            pas sur le nombre total de tours de la partie.
 //                            N'affecte jamais l'attaque ni les competences.

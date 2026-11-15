@@ -94,8 +94,8 @@ function boardConfigFor(maxPlayers) {
 
 /**
  * Cree l'objet plateau utilise par UNE partie. Toute la logique de jeu
- * (gameState.js, movement.js) recoit cet objet en parametre plutot que de
- * s'appuyer sur des constantes globales.
+ * recoit cet objet en parametre (state.boardConfig) plutot que de s'appuyer
+ * sur des constantes globales.
  */
 function createBoard(maxPlayers) {
   const { cols: COLS, rows: ROWS, seats } = boardConfigFor(maxPlayers);
@@ -111,34 +111,22 @@ function createBoard(maxPlayers) {
       .filter(p => inBounds(p.q, p.r));
   }
 
-  function allCells() {
-    const cells = [];
-    for (let row = 0; row < ROWS; row++) {
-      for (let col = 0; col < COLS; col++) cells.push(offsetToAxial(col, row));
-    }
-    return cells;
-  }
-
   // Zones de deploiement, une par cote, sans chevauchement aux coins :
-  // haut/bas revendiquent leurs 2 lignes sur TOUTES les colonnes ; gauche/
-  // droite revendiquent leurs 2 colonnes uniquement sur les lignes du milieu
-  // (celles deja prises par haut/bas sont exclues).
+  // haut/bas revendiquent leurs EDGE lignes sur TOUTES les colonnes ; gauche/
+  // droite revendiquent leurs EDGE colonnes uniquement sur les lignes du
+  // milieu (celles deja prises par haut/bas sont exclues).
   const EDGE = 2;
   function deployZone(side) {
     const cells = [];
     if (side === "bottom" || side === "top") {
-      const rows = side === "bottom" ? [ROWS - 1, ROWS - 2] : [0, 1];
-      for (let row = 0; row < ROWS; row++) {
-        if (!rows.includes(row)) continue;
+      const firstRow = side === "bottom" ? ROWS - EDGE : 0;
+      for (let row = firstRow; row < firstRow + EDGE; row++) {
         for (let col = 0; col < COLS; col++) cells.push(offsetToAxial(col, row));
       }
     } else if (side === "left" || side === "right") {
-      const cols = side === "left" ? [0, 1] : [COLS - 1, COLS - 2];
+      const firstCol = side === "left" ? 0 : COLS - EDGE;
       for (let row = EDGE; row < ROWS - EDGE; row++) {
-        for (let col = 0; col < COLS; col++) {
-          if (!cols.includes(col)) continue;
-          cells.push(offsetToAxial(col, row));
-        }
+        for (let col = firstCol; col < firstCol + EDGE; col++) cells.push(offsetToAxial(col, row));
       }
     }
     return cells;
@@ -151,7 +139,7 @@ function createBoard(maxPlayers) {
     return offsetToAxial(COLS - 1, Math.floor(ROWS / 2)); // "right"
   }
 
-  // Mines : zones de rayon MINE_RADIUS autour d'une case centrale.
+  // Mines : zones de rayon MINE_RADIUS (game/constants.js) autour d'une case centrale.
   // `home` = siege dont c'est la mine de camp (possedee d'office), null pour
   // une mine neutre a conquerir.
   // 2 joueurs (symetrie centrale parfaite) : mine de camp, 2 mines proches de
@@ -179,23 +167,16 @@ function createBoard(maxPlayers) {
     cols: COLS,
     rows: ROWS,
     seats,
-    mineSites,
     inBounds,
     neighbors,
-    allCells,
     deployZone,
     championStart,
-    key,
-    cubeDistance,
-    hexLine,
-    offsetToAxial,
-    axialToOffset
+    mineSites
   };
 }
 
 module.exports = {
   createBoard,
-  boardConfigFor,
   key,
   cubeDistance,
   hexLine,

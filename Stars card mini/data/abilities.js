@@ -9,24 +9,25 @@
 //   move         -> deplace l'unite d'un nombre de cases supplementaire
 //   buff_attack  -> augmente temporairement l'attaque d'une cible
 //   buff_defense -> augmente temporairement la defense (reduction degats) d'une cible
+//   invisible    -> rend la cible invisible pour les adversaires (Camouflage)
 //   none         -> pas d'effet a l'activation (competence PASSIVE, voir `passive`)
 //
-// Drapeaux speciaux geres directement par game/gameState.js (routage avant
+// Drapeaux speciaux geres par game/actions/ability.js (routage avant
 // applyAbilityEffect, car leur resolution sort du cadre "1 effet generique") :
 //   isCharge   -> deplacement reel vers la cible (ligne de vue + chemin valide)
 //                 puis attaque normale (degats de zone/riposte inclus).
 //   isPiercing -> Perforation : touche toutes les unites ENNEMIES alignees
 //                 sur la ligne de tir entre l'attaquant et la cible.
 //   passive    -> jamais activable via useAbility ; effet permanent gere
-//                 ailleurs (ex : Provocation dans attackUnit/useAbility).
+//                 ailleurs (ex : Provocation, voir game/actions/attack.js).
 //
 // `uses` (optionnel) limite le nombre d'utilisations, applique cote moteur
-// par game/gameState.js (voir game/usage.js) :
+// par game/actions/ability.js (voir game/usage.js) :
 //   { total: N }          -> "NU"   : N utilisations max pour TOUTE la partie
 //   { perTurn: N }        -> "NU/T" : N utilisations max PAR TOUR (proprietaire)
 //   { total: N, perTurn: M } -> les deux limites s'appliquent simultanement
 //
-// IMPORTANT -- une entree par HEROS, jamais partagee : gameState.js resout
+// IMPORTANT -- une entree par HEROS, jamais partagee : le moteur resout
 // une competence via `abilitiesById[abilityId]`, donc deux champions qui
 // referencent le MEME id pointent vers le MEME objet (memes degats/portee/
 // cout) et on ne peut plus les equilibrer separement. Meme quand deux

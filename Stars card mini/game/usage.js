@@ -1,6 +1,6 @@
 // Systeme generique de limitation du nombre d'utilisations d'une carte ou
-// d'une competence, applique reellement dans le moteur de jeu (pas
-// seulement affiche). Notation du cahier des charges :
+// d'une competence, applique reellement dans le moteur de jeu (l'affichage
+// des utilisations restantes est fait cote client). Notation du cahier des charges :
 //   "NU"    -> { total: N }            N utilisations max pour toute la partie
 //   "NU/T"  -> { perTurn: N }          N utilisations max par tour
 // Les deux peuvent etre combinees et sont alors verifiees simultanement.
@@ -37,23 +37,4 @@ function resetTurnCounters(store) {
   }
 }
 
-/** Nombre d'utilisations restantes (min des limites actives), ou null si pas de limite. */
-function remainingUses(store, key, usesLimit) {
-  if (!usesLimit) return null;
-  const c = store[key] || { total: 0, thisTurn: 0 };
-  const remaining = [];
-  if (usesLimit.total != null) remaining.push(usesLimit.total - c.total);
-  if (usesLimit.perTurn != null) remaining.push(usesLimit.perTurn - c.thisTurn);
-  return Math.max(0, Math.min(...remaining));
-}
-
-/** Libelle court type "2U/T" / "2U" / "2U, 5U/T" pour l'affichage. */
-function formatUsesLimit(usesLimit) {
-  if (!usesLimit) return null;
-  const parts = [];
-  if (usesLimit.total != null) parts.push(`${usesLimit.total}U`);
-  if (usesLimit.perTurn != null) parts.push(`${usesLimit.perTurn}U/T`);
-  return parts.join(", ");
-}
-
-module.exports = { canUse, recordUse, resetTurnCounters, remainingUses, formatUsesLimit };
+module.exports = { canUse, recordUse, resetTurnCounters };

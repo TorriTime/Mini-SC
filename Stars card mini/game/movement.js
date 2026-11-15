@@ -1,57 +1,20 @@
-// Calcul des cases accessibles par une unite en fonction de sa
-// statistique de deplacement (BFS simple, pas d'obstacles/terrain).
+// Deplacement sur la grille : cases accessibles et plus court chemin, par un
+// meme parcours en largeur (BFS simple, sans cout de terrain).
 //
 // `board` est l'objet plateau de LA partie en cours (game/hexGrid.js#createBoard),
 // jamais une constante globale : plusieurs parties de tailles differentes
 // (2 ou 4 joueurs) peuvent tourner en meme temps sur le serveur.
+//
+// `occupied` : Set de cles "q,r" des cases occupees par une unite VIVANTE
+// (voir battlefield.js#occupiedSet). Une unite ne traverse jamais une case
+// occupee.
 
 const { key: keyOf } = require("./hexGrid");
 
 /**
- * Retourne la liste des cases {q,r} atteignables depuis (startQ,startR)
- * en au plus `movement` pas, sans traverser de case occupee.
- * occupiedSet: Set de "q,r" occupees par une unite VIVANTE (voir
- * gameState.js#occupiedSet, qui ne doit lister que des unites avec health>0).
- */
-function reachableCells(board, startQ, startR, movement, occupiedSet) {
-  const visited = new Map();
-  visited.set(keyOf(startQ, startR), 0);
-  let frontier = [{ q: startQ, r: startR, dist: 0 }];
-
-  while (frontier.length > 0) {
-    const next = [];
-    for (const cell of frontier) {
-      if (cell.dist >= movement) continue;
-      for (const n of board.neighbors(cell.q, cell.r)) {
-        const k = keyOf(n.q, n.r);
-        if (visited.has(k)) continue;
-        if (occupiedSet.has(k)) continue; // impossible de traverser une unite
-        visited.set(k, cell.dist + 1);
-        next.push({ q: n.q, r: n.r, dist: cell.dist + 1 });
-      }
-    }
-    frontier = next;
-  }
-
-  visited.delete(keyOf(startQ, startR));
-  return Array.from(visited.keys()).map(k => {
-    const [q, r] = k.split(",").map(Number);
-    return { q, r };
-  });
-}
-
-function isReachable(board, startQ, startR, targetQ, targetR, movement, occupiedSet) {
-  if (!board.inBounds(targetQ, targetR)) return false;
-  return reachableCells(board, startQ, startR, movement, occupiedSet)
-    .some(c => c.q === targetQ && c.r === targetR);
-}
-
-/**
- * Chemin le plus court (BFS, memes regles que reachableCells) entre deux
- * cases, utilise pour l'animation de deplacement ET pour detecter les
- * pieges traverses en route (voir gameState.js#triggerTrapsAlongPath).
- * Retourne la liste des cases DE DEPART A DESTINATION (les deux incluses),
- * ou null si la destination n'est pas atteignable.
+ * Parcours en largeur depuis `from`, limite a `movement` pas. Retourne une
+ * Map cle -> { q, r, dist, parentKey } dans l'ordre de decouverte. Si
+ * `stopAtKey` est fourni, le parcours s'arrete des que cette case est atteinte.
  *
  * Plusieurs chemins de meme longueur sont possibles sur une grille
  * hexagonale : `board.neighbors()` explore TOUJOURS les 6 directions dans
@@ -61,42 +24,53 @@ function isReachable(board, startQ, startR, targetQ, targetR, movement, occupied
  * et reproductible les chemins passant par la droite en cas d'egalite,
  * plutot que de trancher au hasard.
  */
-function shortestPath(board, startQ, startR, targetQ, targetR, movement, occupiedSet) {
-  const startKey = keyOf(startQ, startR);
-  const targetKey = keyOf(targetQ, targetR);
-  if (startKey === targetKey) return [{ q: startQ, r: startR }];
+function explore(board, from, movement, occupied, stopAtKey = null) {
+  const startKey = keyOf(from.q, from.r);
+  const visited = new Map([[startKey, { q: from.q, r: from.r, dist: 0, parentKey: null }]]);
+  let frontier = [startKey];
 
-  const visited = new Map();
-  visited.set(startKey, { q: startQ, r: startR, dist: 0, parentKey: null });
-  let frontier = [{ q: startQ, r: startR }];
-
-  while (frontier.length > 0) {
-    if (visited.has(targetKey)) break;
+  while (frontier.length > 0 && !(stopAtKey && visited.has(stopAtKey))) {
     const next = [];
-    for (const cell of frontier) {
-      const dist = visited.get(keyOf(cell.q, cell.r)).dist;
-      if (dist >= movement) continue;
-      for (const n of board.neighbors(cell.q, cell.r)) {
+    for (const currentKey of frontier) {
+      const current = visited.get(currentKey);
+      if (current.dist >= movement) continue;
+      for (const n of board.neighbors(current.q, current.r)) {
         const k = keyOf(n.q, n.r);
-        if (visited.has(k)) continue;
-        if (occupiedSet.has(k)) continue;
-        visited.set(k, { q: n.q, r: n.r, dist: dist + 1, parentKey: keyOf(cell.q, cell.r) });
-        next.push(n);
+        if (visited.has(k) || occupied.has(k)) continue;
+        visited.set(k, { q: n.q, r: n.r, dist: current.dist + 1, parentKey: currentKey });
+        next.push(k);
       }
     }
     frontier = next;
   }
+  return visited;
+}
 
+/** Cases {q,r} atteignables depuis `from` en au plus `movement` pas (case de depart exclue). */
+function reachableCells(board, from, movement, occupied) {
+  const visited = explore(board, from, movement, occupied);
+  visited.delete(keyOf(from.q, from.r));
+  return Array.from(visited.values(), node => ({ q: node.q, r: node.r }));
+}
+
+/**
+ * Chemin le plus court entre deux cases (memes regles que reachableCells),
+ * utilise pour l'animation de deplacement ET pour detecter les pieges
+ * traverses en route (voir traps.js#triggerTrapsAlongPath).
+ * Retourne la liste des cases DE DEPART A DESTINATION (les deux incluses),
+ * ou null si la destination n'est pas atteignable.
+ */
+function shortestPath(board, from, to, movement, occupied) {
+  const targetKey = keyOf(to.q, to.r);
+  const visited = explore(board, from, movement, occupied, targetKey);
   if (!visited.has(targetKey)) return null;
 
   const path = [];
-  let curKey = targetKey;
-  while (curKey) {
-    const node = visited.get(curKey);
+  for (let k = targetKey; k; k = visited.get(k).parentKey) {
+    const node = visited.get(k);
     path.unshift({ q: node.q, r: node.r });
-    curKey = node.parentKey;
   }
   return path;
 }
 
-module.exports = { reachableCells, isReachable, shortestPath };
+module.exports = { reachableCells, shortestPath };

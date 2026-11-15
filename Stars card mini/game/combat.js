@@ -1,31 +1,39 @@
-// Resolution des combats : portee, degats, buffs temporaires, passifs.
+// Resolution des combats : portee, degats, soins, buffs temporaires.
 
 const { cubeDistance } = require("./hexGrid");
+const passives = require("./passives");
+
+function sumBuffs(unit, type) {
+  let total = 0;
+  for (const b of unit.buffs || []) {
+    if (b.type === type) total += b.amount;
+  }
+  return total;
+}
 
 function effectiveAttack(unit) {
-  let atk = unit.attack;
-  for (const b of unit.buffs || []) {
-    if (b.type === "attack") atk += b.amount;
-  }
-  if (unit.isChampion && unit.passive && unit.passive.type === "frenzy") {
-    if (unit.health <= unit.maxHealth * 0.5) {
-      atk += unit.passive.amount;
-    }
-  }
-  return atk;
+  return unit.attack + sumBuffs(unit, "attack") + passives.attackBonus(unit);
 }
 
 function effectiveDefense(unit) {
-  let def = 0;
-  for (const b of unit.buffs || []) {
-    if (b.type === "defense") def += b.amount;
-  }
-  return def;
+  return sumBuffs(unit, "defense");
 }
 
 /** Degats apres reduction (ex : Noyau celeste, multiplicateur 0.85), minimum 1. */
 function scaleDamage(amount, multiplier = 1) {
   return Math.max(1, Math.round(amount * multiplier));
+}
+
+/** Retire `damage` PV (jamais en dessous de 0). */
+function dealDamage(unit, damage) {
+  unit.health = Math.max(0, unit.health - damage);
+}
+
+/** Rend `amount` PV (jamais au-dessus du maximum). Retourne les PV reellement rendus. */
+function healUnit(unit, amount) {
+  const before = unit.health;
+  unit.health = Math.min(unit.maxHealth, unit.health + amount);
+  return unit.health - before;
 }
 
 function inRange(attacker, target) {
@@ -38,10 +46,8 @@ function inRange(attacker, target) {
  * unites (health). Retourne le rapport de degats.
  */
 function resolveAttack(attacker, target, damageMultiplier = 1) {
-  const rawAttack = effectiveAttack(attacker);
-  const defense = effectiveDefense(target);
-  const damage = scaleDamage(rawAttack - defense, damageMultiplier);
-  target.health = Math.max(0, target.health - damage);
+  const damage = scaleDamage(effectiveAttack(attacker) - effectiveDefense(target), damageMultiplier);
+  dealDamage(target, damage);
   return { damage, targetHealth: target.health, targetKO: target.health <= 0 };
 }
 
@@ -57,4 +63,13 @@ function canRetaliate(defender, attacker) {
   return inRange(defender, attacker);
 }
 
-module.exports = { scaleDamage, effectiveAttack, effectiveDefense, inRange, resolveAttack, canRetaliate };
+module.exports = {
+  effectiveAttack,
+  effectiveDefense,
+  scaleDamage,
+  dealDamage,
+  healUnit,
+  inRange,
+  resolveAttack,
+  canRetaliate
+};
