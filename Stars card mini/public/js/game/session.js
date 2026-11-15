@@ -30,6 +30,25 @@ export function selectedSpell() {
   return hand && hand.card.type === "spell" ? hand.card : null;
 }
 
+/** A appeler a chaque nouvel etat recu du serveur : abandonne ce qui, dans la
+ * selection, n'est plus possible (tour passe a un autre joueur, unite
+ * detruite ou devenue invisible, carte qui a quitte la main). Sans cela les
+ * surbrillances d'une action devenue impossible resteraient affichees. */
+export function pruneSelection() {
+  const { state } = session;
+  const onBoard = id => !!state.units[id] && state.units[id].health > 0;
+  const inHand = instanceId => (myPlayer().hand || []).some(c => c.instanceId === instanceId);
+
+  if (session.selectedUnitId && !onBoard(session.selectedUnitId)) session.selectedUnitId = null;
+  if (session.inspectedEnemyId && !onBoard(session.inspectedEnemyId)) session.inspectedEnemyId = null;
+  if (session.selectedHand && !(isMyTurn() && inHand(session.selectedHand.instanceId))) session.selectedHand = null;
+  // Deplacement et competence armee : uniquement pour MON unite, pendant MON tour.
+  if (!isMyTurn() || !session.selectedUnitId) {
+    session.reachableCells = [];
+    session.armedAbility = null;
+  }
+}
+
 // Rafraichissement de l'affichage : les modules d'affichage s'enregistrent
 // ici (voir game/index.js), ce qui evite les dependances circulaires entre
 // le plateau, la main et les panneaux.
@@ -40,7 +59,14 @@ export function setRenderers({ board, hand }) {
   renderers.hand = hand;
 }
 
-/** Redessine le plateau et les panneaux d'information. */
+/** Redessine le plateau et les panneaux d'information (ex : etape d'animation). */
 export const refreshBoard = () => renderers.board();
-/** Redessine la main du joueur. */
-export const refreshHand = () => renderers.hand();
+
+/** A appeler apres TOUT changement de selection : redessine le plateau, les
+ * panneaux et la main, pour que les surbrillances correspondent toujours a
+ * la selection reelle -- y compris quand une action vient d'etre envoyee au
+ * serveur et qu'il la refuse (aucun nouvel etat ne viendra alors redessiner). */
+export function refreshSelection() {
+  renderers.board();
+  renderers.hand();
+}

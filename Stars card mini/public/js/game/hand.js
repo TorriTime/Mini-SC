@@ -4,7 +4,7 @@ import { $ } from "../dom.js";
 import { socket } from "../socket.js";
 import { cardById, abilityById } from "../catalog.js";
 import { abilityTooltipAttr, showCardDetail, SPELL_TAG } from "../views.js";
-import { session, clearSelection, myPlayer, isMyTurn, refreshBoard, refreshHand } from "./session.js";
+import { session, clearSelection, myPlayer, isMyTurn, refreshSelection } from "./session.js";
 
 function abilityTagsHtml(card) {
   return (card.abilities || []).map(id => {
@@ -46,8 +46,7 @@ function onCardClick(instanceId, card) {
   const wasSelected = session.selectedHand && session.selectedHand.instanceId === instanceId;
   clearSelection();
   if (!wasSelected) session.selectedHand = { instanceId, card };
-  refreshBoard();
-  refreshHand();
+  refreshSelection();
 }
 
 export function renderHand() {

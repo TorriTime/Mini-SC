@@ -6,7 +6,7 @@ import { $ } from "../dom.js";
 import { socket } from "../socket.js";
 import { abilityById } from "../catalog.js";
 import { abilityTooltipAttr, abilityListItemsHtml, unitSummaryHtml, usesRemainingLabel, SPELL_TAG } from "../views.js";
-import { session, clearSelection, myPlayer, isMyTurn, refreshBoard } from "./session.js";
+import { session, clearSelection, myPlayer, isMyTurn, refreshSelection } from "./session.js";
 
 const SPELL_HINTS = {
   ally: "Clique une unite alliee (surlignee) pour cibler ce sort.",
@@ -59,7 +59,7 @@ function onAbilityClick(unit, abilityId) {
     // Competence ciblee : "armee", le prochain clic sur une unite la lance.
     session.armedAbility = { abilityId, ability };
   }
-  refreshBoard();
+  refreshSelection();
 }
 
 function renderMyPanel() {

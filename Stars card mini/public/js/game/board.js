@@ -6,7 +6,7 @@ import { $ } from "../dom.js";
 import { socket } from "../socket.js";
 import { HEX_WIDTH, HEX_HEIGHT, offsetToAxial, hexPixel, boardPixelSize, cubeDistance, cellKey, SEAT_ROTATION } from "../hex.js";
 import { effectiveMovementOf } from "../views.js";
-import { session, clearSelection, myId, isMyTurn, selectedSpell, refreshBoard } from "./session.js";
+import { session, clearSelection, myId, isMyTurn, selectedSpell, refreshBoard, refreshSelection } from "./session.js";
 import { renderPanels } from "./panels.js";
 
 const keySet = cells => new Set((cells || []).map(cellKey));
@@ -216,25 +216,30 @@ export function renderBoard() {
 }
 
 // ---- Clics ----
+// Chaque gestionnaire met a jour la selection puis appelle refreshSelection() :
+// une action envoyee au serveur vide la selection, et ses surbrillances
+// disparaissent aussitot, que le serveur accepte l'action ou non.
 
 function castSpellOnCell(cell) {
   const spell = selectedSpell();
   if (!spell || spell.targetType !== "cell") return;
   socket.emit("castSpell", { instanceId: session.selectedHand.instanceId, targetId: null, targetCell: { q: cell.q, r: cell.r } });
   clearSelection();
-  refreshBoard();
+  refreshSelection();
 }
 
 function moveSelectedUnitTo(cell) {
   if (!session.selectedUnitId) return;
   socket.emit("moveUnit", { unitId: session.selectedUnitId, q: cell.q, r: cell.r });
   clearSelection();
+  refreshSelection();
 }
 
 function deploySelectedCardAt(cell) {
   if (!session.selectedHand) return;
   socket.emit("playCard", { instanceId: session.selectedHand.instanceId, q: cell.q, r: cell.r });
   clearSelection();
+  refreshSelection();
 }
 
 /** Clic sur une unite avec un sort selectionne. Un sort arme ne retombe
@@ -251,7 +256,7 @@ function castSpellOnUnit(spell, unit) {
   if (!validTarget) return;
   socket.emit("castSpell", { instanceId: session.selectedHand.instanceId, targetId: unit.id });
   clearSelection();
-  refreshBoard();
+  refreshSelection();
 }
 
 function selectUnit(unit) {
@@ -265,19 +270,17 @@ function selectUnit(unit) {
   session.selectedUnitId = unit.id;
   if (isMyTurn() && unit.health > 0) {
     socket.emit("requestReachable", { unitId: unit.id }, res => {
+      // La reponse peut arriver apres un changement de selection : on l'ignore alors.
+      if (session.selectedUnitId !== unit.id) return;
       session.reachableCells = (res && res.ok && !unit.hasMoved) ? res.cells : [];
       refreshBoard();
     });
   }
 }
 
-function onUnitClick(unit) {
-  const spell = selectedSpell();
-  if (spell) {
-    castSpellOnUnit(spell, unit);
-    return;
-  }
-
+/** Clic sur une unite sans sort selectionne : competence armee, attaque,
+ * ou (de)selection, selon la selection en cours. */
+function actOnUnit(unit) {
   if (session.armedAbility && session.selectedUnitId) {
     socket.emit("useAbility", { casterId: session.selectedUnitId, abilityId: session.armedAbility.abilityId, targetId: unit.id });
     clearSelection();
@@ -300,5 +303,14 @@ function onUnitClick(unit) {
   const wasSelected = unit.id === session.selectedUnitId || unit.id === session.inspectedEnemyId;
   clearSelection();
   if (!wasSelected) selectUnit(unit);
-  refreshBoard();
+}
+
+function onUnitClick(unit) {
+  const spell = selectedSpell();
+  if (spell) {
+    castSpellOnUnit(spell, unit);
+    return;
+  }
+  actOnUnit(unit);
+  refreshSelection();
 }
