@@ -4,6 +4,7 @@
 import { $, onClick, showScreen } from "./dom.js";
 import { socket } from "./socket.js";
 import { championById } from "./catalog.js";
+import { escapeHtml } from "./html.js";
 import { allDecks, deckById, activeDeck, deckIsValid, MIN_DECK_SIZE } from "./deckStore.js";
 
 const COPIED_MESSAGE = "Code copie !";
@@ -51,7 +52,7 @@ function renderPlayers(state) {
     if (id) {
       const p = state.players[id];
       const status = p.ready ? `Deck : ${p.deckName || "?"}` : "Choisit son deck...";
-      row.innerHTML = `<span>${p.name}${id === state.you ? " (toi)" : ""}</span><span class="status">${status}</span>`;
+      row.innerHTML = `<span>${escapeHtml(p.name)}${id === state.you ? " (toi)" : ""}</span><span class="status">${escapeHtml(status)}</span>`;
     } else {
       row.innerHTML = `<span>En attente...</span><span class="status empty">Place libre</span>`;
     }
@@ -95,7 +96,7 @@ function renderDeckPicker(state) {
     const row = document.createElement("div");
     row.className = "lobby-deck-option" + (d.id === selectedDeckId ? " selected" : "");
     const champ = championById(d.championId);
-    row.innerHTML = `<b>${d.name}</b><span class="stats">${d.cardIds.length} cartes - ${champ ? champ.name : "?"}</span>`;
+    row.innerHTML = `<b>${escapeHtml(d.name)}</b><span class="stats">${d.cardIds.length} cartes - ${champ ? champ.name : "?"}</span>`;
     row.addEventListener("click", () => { selectedDeckId = d.id; renderDeckPicker(state); });
     list.appendChild(row);
   });

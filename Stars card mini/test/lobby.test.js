@@ -19,6 +19,15 @@ describe("salon d'attente", () => {
     assert.deepEqual(state.options, { ...gs.DEFAULT_OPTIONS, sandbox: true });
   });
 
+  it("normalise les textes libres envoyes par le client", () => {
+    const state = gs.createGame("p1", "  " + "A".repeat(40));
+    assert.equal(state.players.p1.name, "A".repeat(16));
+    gs.joinGame(state, "p2", { toString: () => "<script>" });
+    assert.equal(state.players.p2.name, "Joueur");
+    gs.setPlayerLoadout(state, "p1", { championId: "kael", deckCardIds: BASIC_DECK, deckName: ["<b>"] });
+    assert.equal(state.players.p1.deckName, "Deck");
+  });
+
   it("refuse un joueur de trop ou une partie deja lancee", () => {
     const state = gs.createGame("p1", "Alice");
     gs.joinGame(state, "p2", "Bob");

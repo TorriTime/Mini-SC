@@ -3,6 +3,7 @@
 
 import { $, onClick } from "../dom.js";
 import { socket } from "../socket.js";
+import { escapeHtml } from "../html.js";
 import { healthPercent, healthColor, manaLabel } from "../views.js";
 import { session, myId, myPlayer, isMyTurn } from "./session.js";
 
@@ -61,7 +62,7 @@ function renderOpponents() {
     const div = document.createElement("div");
     div.className = "mini-champion-badge" + (player.eliminated ? " eliminated" : "");
     div.innerHTML = `
-      <div class="champion-name">${player.name}${status}</div>
+      <div class="champion-name">${escapeHtml(player.name)}${status}</div>
       <div class="hp-bar"><div class="hp-fill" style="width:${pct}%; background:${healthColor(pct)};"></div></div>
       <div class="mana-badge">${manaLabel(player)}</div>
     `;

@@ -10,6 +10,7 @@ module.exports = {
   SAFE_MIN_MOVEMENT: 2,  // deplacement minimal des unites dans une zone sure
   TOWER_HEALTH: 50,
   MIN_DECK_SIZE: 10,
+  MAX_PLAYER_NAME_LENGTH: 16, // comme le champ de saisie du pseudo cote client
   MAX_DECK_NAME_LENGTH: 40,
   GAME_CODE_LENGTH: 5,
   LOG_HISTORY: 50,       // messages conserves dans l'etat serveur

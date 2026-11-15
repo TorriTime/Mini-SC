@@ -9,12 +9,19 @@ const { championsById, playableCardDef } = require("./catalog");
 const { makeChampionUnit } = require("./units");
 const { createMines } = require("./mines");
 const { drawCard, eliminatePlayer } = require("./turns");
-const { STARTING_HAND, MIN_DECK_SIZE, MAX_DECK_NAME_LENGTH } = require("./constants");
+const { STARTING_HAND, MIN_DECK_SIZE, MAX_DECK_NAME_LENGTH, MAX_PLAYER_NAME_LENGTH } = require("./constants");
+
+/** Texte libre venu du client : toujours une chaine, sans espaces autour, de
+ * longueur bornee (il est rediffuse a tous les joueurs de la partie). */
+function cleanText(value, maxLength, fallback) {
+  const text = typeof value === "string" || typeof value === "number" ? String(value) : "";
+  return text.trim().slice(0, maxLength) || fallback;
+}
 
 function newPlayer(id, name) {
   return {
     id,
-    name: name || "Joueur",
+    name: cleanText(name, MAX_PLAYER_NAME_LENGTH, "Joueur"),
     side: null,
     championId: null,
     championUnitId: null,
@@ -76,7 +83,7 @@ function setPlayerLoadout(state, playerId, { championId, deckCardIds, deckName }
   }
   player.championId = championId;
   player.deckCardIds = validDeck;
-  player.deckName = (deckName || "").toString().trim().slice(0, MAX_DECK_NAME_LENGTH) || "Deck";
+  player.deckName = cleanText(deckName, MAX_DECK_NAME_LENGTH, "Deck");
   player.ready = true;
   addLog(state, `${player.name} a choisi son deck (${player.deckName}).`);
 }
