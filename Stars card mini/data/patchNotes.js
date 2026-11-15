@@ -1,6 +1,6 @@
 // Historique des versions affiche dans l'onglet "Patch notes" du menu
 // principal. Purement informatif (pas de progression/achats/mise a jour
-// automatique) -- voir public/client.js pour l'affichage.
+// automatique) -- voir public/js/menu.js pour l'affichage.
 //
 // Pour ajouter une entree : pousser un nouvel objet EN TETE du tableau
 // (ordre decroissant, la version la plus recente en premier).

@@ -125,7 +125,7 @@ input {
 
 .mana-badge { background: #22283d; border-radius: 6px; padding: 6px 12px; color: #7fd1ff; font-weight: bold; }
 
-/* Largeur/hauteur fixees en JS (rotation-aware, voir renderBoard) ; ce
+/* Largeur/hauteur fixees en JS (rotation-aware, voir js/game/board.js) ; ce
    wrapper centre le plateau (deja tourne visuellement) dans l'espace ainsi
    reserve, sur les deux axes -- evite le decalage/debordement qui donnait
    l'impression d'un plateau "zoome" pour les sieges gauche/droite. */
@@ -191,7 +191,7 @@ input {
 }
 .hex.mud { box-shadow: inset 0 0 0 2px #a9793f; }
 /* Piege pose par le joueur (jamais envoye par le serveur pour un piege
-   adverse -- voir gameState.js#serializeForPlayer) : simple icone discrete
+   adverse -- voir game/traps.js cote serveur) : simple icone discrete
    en coin, ne cache jamais le jeton d'une unite eventuellement dessus. */
 .hex.trap { cursor: default; }
 .trap-marker {
@@ -220,7 +220,7 @@ input {
   pointer-events: none;
 }
 /* Ma propre unite invisible (Camouflage) : seul moi la recois du serveur
-   avec ce marqueur (voir serializeForPlayer) -- un adversaire ne voit meme
+   avec ce marqueur (voir game/serialize.js) -- un adversaire ne voit meme
    pas le jeton, donc ce style n'a de sens que pour son proprietaire. */
 .unit-token.invisible-mine { opacity: 0.55; border-style: dashed; }
 .unit-token.mine { background: #2a6fbd; }

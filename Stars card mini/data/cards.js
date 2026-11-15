@@ -7,7 +7,7 @@
 //   id, name, type: "unit", cost, attack, health, movement, range, description,
 //   abilities: [abilityId,...],
 //   class, race, role   -- metadonnees LIBRES utilisees par les filtres du
-//                          deckbuilder (public/client.js). Absentes = non
+//                          deckbuilder (public/js/deckBuilder.js). Absentes = non
 //                          filtrable sur ce critere, jamais une erreur.
 //   splash: { radius, percent } -- optionnel : degats de zone sur l'attaque
 //                                   de base (voir game/actions/attack.js).
