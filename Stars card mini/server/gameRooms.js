@@ -1,6 +1,14 @@
 // Parties en cours sur ce serveur (en memoire) : registre code -> partie,
 // diffusion de l'etat a chaque joueur et chronometre de tour.
 // L'identifiant d'un joueur est l'id de son socket.
+//
+// Un joueur est "rattache" a une seule partie a la fois (codeByPlayer). Il
+// s'en detache en se deconnectant ou en creant/rejoignant une autre partie.
+// Une partie que plus aucun joueur ne suit est retiree de la memoire, quel
+// que soit son statut (salon vide, partie abandonnee, partie terminee) : il
+// n'y a donc jamais plus de parties en memoire que de joueurs connectes.
+// Tant qu'un joueur y reste rattache, une partie terminee est conservee
+// pour permettre "Rejouer".
 
 const gs = require("../game/gameState");
 
@@ -15,6 +23,7 @@ class GameRooms {
 
   create(playerId, name, settings) {
     const state = gs.createGame(playerId, name, settings);
+    this.leave(playerId); // quitte sa partie precedente, s'il en avait une
     this.games.set(state.code, state);
     this.codeByPlayer.set(playerId, state.code);
     return state;
@@ -24,9 +33,34 @@ class GameRooms {
     const code = String(rawCode || "").toUpperCase().trim();
     const state = this.games.get(code);
     if (!state) throw new Error("Partie introuvable.");
-    gs.joinGame(state, playerId, name);
-    this.codeByPlayer.set(playerId, code);
+    // Deja assis dans ce salon (ex : retour au menu puis meme code) : rien a faire.
+    const alreadySeated = this.isFollowing(playerId, code) && state.status === "waiting";
+    if (!alreadySeated) {
+      // joinGame d'abord : s'il refuse (partie pleine, deja lancee), le joueur
+      // garde sa partie precedente.
+      gs.joinGame(state, playerId, name);
+      this.leave(playerId);
+      this.codeByPlayer.set(playerId, code);
+    }
     return state;
+  }
+
+  /** Vrai si le joueur est rattache a la partie `code`. */
+  isFollowing(playerId, code) {
+    return this.codeByPlayer.get(playerId) === code;
+  }
+
+  /** Joueurs de la partie qui y sont encore rattaches (connectes et pas partis ailleurs). */
+  followers(code) {
+    const state = this.games.get(code);
+    if (!state) return [];
+    return Object.keys(state.players).filter(id => this.isFollowing(id, code));
+  }
+
+  /** Retire la partie de la memoire (et son chronometre). */
+  discard(code) {
+    this.clearTurnTimer(code);
+    this.games.delete(code);
   }
 
   /** Partie du joueur, ou undefined s'il n'en a pas. */
@@ -41,11 +75,11 @@ class GameRooms {
     return state;
   }
 
-  /** Envoie a chaque joueur SA vue de la partie (voir game/serialize.js). */
+  /** Envoie a chaque joueur encore rattache SA vue de la partie (voir game/serialize.js). */
   broadcastState(code) {
     const state = this.games.get(code);
     if (!state) return;
-    for (const playerId of Object.keys(state.players)) {
+    for (const playerId of this.followers(code)) {
       this.io.to(playerId).emit("state", gs.serializeForPlayer(state, playerId));
     }
   }
@@ -60,7 +94,7 @@ class GameRooms {
     const unitId = result.unitId || (result.unit && result.unit.id);
     const unit = state.units[unitId];
     if (!unit) return;
-    for (const playerId of Object.keys(state.players)) {
+    for (const playerId of this.followers(state.code)) {
       if (!gs.isUnitVisibleTo(unit, playerId)) continue;
       this.io.to(playerId).emit("unitMoved", {
         unitId,
@@ -100,15 +134,16 @@ class GameRooms {
     this.turnTimers.set(code, timer);
   }
 
-  /** Nouvelle partie dans le meme salon (meme code, memes joueurs, memes
-   * options) ; chacun rechoisit son deck. Retourne le code, ou null si le
-   * joueur n'a pas de partie. */
+  /** Nouvelle partie dans le meme salon (meme code, memes options), avec les
+   * joueurs encore rattaches a la precedente ; chacun rechoisit son deck. Les
+   * places des joueurs partis redeviennent libres. Retourne le code, ou null
+   * si le joueur n'a pas de partie. */
   rematch(playerId) {
     const code = this.codeByPlayer.get(playerId);
     const previous = this.games.get(code);
     if (!previous) return null;
 
-    const [hostId, ...guestIds] = previous.order;
+    const [hostId, ...guestIds] = previous.order.filter(id => this.isFollowing(id, code));
     const state = gs.createGame(hostId, previous.players[hostId].name, {
       maxPlayers: previous.maxPlayers,
       options: previous.options
@@ -116,23 +151,28 @@ class GameRooms {
     state.code = code;
     for (const id of guestIds) gs.joinGame(state, id, previous.players[id].name);
 
-    this.games.set(code, state);
-    for (const id of previous.order) this.codeByPlayer.set(id, code);
     this.clearTurnTimer(code);
+    this.games.set(code, state);
     return code;
   }
 
-  /** Deconnexion d'un joueur : place liberee (salon) ou abandon (partie en cours). */
+  /** Detache le joueur de sa partie (deconnexion, ou depart vers une autre
+   * partie) : place liberee dans un salon, abandon dans une partie en cours.
+   * La partie est retiree de la memoire si plus personne ne la suit. */
   leave(playerId) {
     const code = this.codeByPlayer.get(playerId);
     if (!code) return;
-    const state = this.games.get(code);
-    if (state) {
-      gs.removePlayer(state, playerId);
-      this.broadcastState(code);
-      this.scheduleTurnTimer(code);
-    }
     this.codeByPlayer.delete(playerId);
+    const state = this.games.get(code);
+    if (!state) return;
+
+    gs.removePlayer(state, playerId);
+    if (this.followers(code).length === 0) {
+      this.discard(code);
+      return;
+    }
+    this.broadcastState(code);
+    this.scheduleTurnTimer(code);
   }
 }
 

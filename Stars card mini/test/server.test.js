@@ -149,6 +149,19 @@ describe("protocole temps reel", () => {
     assert.equal(net.rooms.gameOf("bob"), undefined);
   });
 
+  it("rejouer ne reprend que les joueurs encore presents", () => {
+    const { alice, bob, code, connect } = startedMatch();
+    bob.disconnect();
+    alice.send("rematch");
+    const view = alice.last("state");
+    assert.equal(view.status, "waiting");
+    assert.deepEqual(view.order, ["alice"]);
+
+    const carol = connect("carol");
+    carol.send("joinGame", { code, name: "Carol" });
+    assert.deepEqual(alice.last("state").order, ["alice", "carol"]);
+  });
+
   it("rejouer recree un salon avec le meme code, les memes joueurs et options", () => {
     const { alice, bob, code } = startedMatch({ handLimit: 7 });
     alice.send("forfeit");
@@ -183,5 +196,99 @@ describe("protocole temps reel", () => {
     } finally {
       mock.timers.reset();
     }
+  });
+});
+
+describe("liberation de la memoire", () => {
+  it("garde une partie terminee tant qu'un joueur la suit, puis la retire", () => {
+    const { rooms, alice, bob, code } = startedMatch({ turnTimerSeconds: 20 });
+    alice.send("forfeit");
+    assert.equal(rooms.games.get(code).status, "finished");
+
+    alice.disconnect();
+    assert.ok(rooms.games.has(code), "bob peut encore demander a rejouer");
+    bob.disconnect();
+    assert.equal(rooms.games.size, 0);
+    assert.equal(rooms.codeByPlayer.size, 0);
+    assert.equal(rooms.turnTimers.size, 0);
+  });
+
+  it("retire une partie en cours quand tous les joueurs sont partis", () => {
+    const { rooms, alice, bob } = startedMatch({ turnTimerSeconds: 20 });
+    bob.disconnect();
+    alice.disconnect();
+    assert.equal(rooms.games.size, 0);
+    assert.equal(rooms.turnTimers.size, 0);
+  });
+
+  it("retire un salon d'attente vide", () => {
+    const net = fakeNetwork();
+    const alice = net.connect("alice");
+    alice.send("createGame", { name: "Alice" });
+    const { code } = alice.last("gameCreated");
+    alice.disconnect();
+    assert.equal(net.rooms.games.size, 0);
+
+    const bob = net.connect("bob");
+    bob.send("joinGame", { code });
+    assert.equal(bob.last("errorMessage"), "Partie introuvable.");
+  });
+
+  it("creer une nouvelle partie fait quitter la precedente", () => {
+    const { rooms, alice, bob, code } = startedMatch();
+    alice.send("forfeit");
+    alice.send("createGame", { name: "Alice" });
+    const newCode = alice.last("gameCreated").code;
+    assert.equal(alice.last("state").code, newCode);
+    assert.ok(rooms.games.has(code), "bob suit encore l'ancienne partie");
+
+    // L'ancienne partie ne s'adresse plus a alice, et bob peut y rejouer seul.
+    const statesBefore = alice.all("state").length;
+    bob.send("rematch");
+    assert.equal(alice.all("state").length, statesBefore);
+    assert.deepEqual(bob.last("state").order, ["bob"]);
+
+    bob.send("createGame", { name: "Bob" });
+    assert.ok(!rooms.games.has(code));
+    assert.equal(rooms.games.size, 2);
+  });
+
+  it("rejoindre une autre partie libere sa place dans le salon precedent", () => {
+    const net = fakeNetwork();
+    const alice = net.connect("alice"), bob = net.connect("bob"), carol = net.connect("carol");
+    alice.send("createGame", { name: "Alice" });
+    carol.send("createGame", { name: "Carol" });
+    bob.send("joinGame", { code: alice.last("gameCreated").code, name: "Bob" });
+    assert.deepEqual(alice.last("state").order, ["alice", "bob"]);
+
+    bob.send("joinGame", { code: carol.last("gameCreated").code, name: "Bob" });
+    assert.deepEqual(alice.last("state").order, ["alice"]);
+    assert.deepEqual(carol.last("state").order, ["carol", "bob"]);
+    assert.equal(net.rooms.games.size, 2);
+  });
+
+  it("un refus de rejoindre ne fait pas perdre sa partie en cours", () => {
+    const { rooms, alice, bob, code } = startedMatch();
+    const other = startedMatch();
+    // meme registre : on y inscrit une seconde partie deja lancee
+    rooms.games.set("PLEIN", other.state);
+    bob.send("joinGame", { code: "PLEIN" });
+    assert.equal(bob.last("errorMessage"), "La partie a deja commence.");
+    bob.send("joinGame", { code: "ZZZZZ" });
+    assert.equal(bob.last("errorMessage"), "Partie introuvable.");
+    assert.equal(rooms.gameOf("bob"), rooms.games.get(code));
+    assert.equal(rooms.games.get(code).status, "playing");
+    assert.equal(alice.last("state").players.bob.eliminated, false);
+  });
+
+  it("rejoindre le salon ou l'on est deja assis ne duplique pas le joueur", () => {
+    const net = fakeNetwork();
+    const alice = net.connect("alice"), bob = net.connect("bob");
+    alice.send("createGame", { name: "Alice" });
+    const { code } = alice.last("gameCreated");
+    bob.send("joinGame", { code, name: "Bob" });
+    bob.send("joinGame", { code, name: "Bob" });
+    assert.deepEqual(bob.last("state").order, ["alice", "bob"]);
+    assert.deepEqual(bob.last("gameJoined"), { code });
   });
 });
