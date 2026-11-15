@@ -55,6 +55,9 @@
   .chip.discount{background:var(--orange-bg);color:var(--orange)}
   .chip.watch{background:var(--amber-bg);color:var(--amber)}
   .chip.ok{background:var(--ok-bg);color:var(--green-d)}
+  .chip.none{background:var(--hover);color:var(--muted)}
+  .item.none{border-left-color:var(--line)}
+  .item.none h3{color:var(--muted)}
   .chip.done{background:var(--blue-bg);color:var(--blue)}
   .right{text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
   .days{font-weight:700}
@@ -141,8 +144,8 @@
       <label>Date limite (DLC/DDM)
         <input id="pDate" type="date" required>
       </label>
-      <label>Quantité
-        <input id="pQty" type="number" min="1" value="1">
+      <label>Quantité (0 = aucun)
+        <input id="pQty" type="number" min="0" value="1">
       </label>
       <label>Prix € (facultatif)
         <input id="pPrice" type="number" min="0" step="0.01" inputmode="decimal">
@@ -231,7 +234,10 @@
   const sortedTiers = () => [...db.tiers].sort((a,b)=>a.days-b.days);
 
   // état d'un produit : key = expired | remove | discount | watch | ok
+  const qtyOf = p => Number.isFinite(p.qty) ? p.qty : 1;   // 0 = aucun en rayon
+  const dk = p => p.date || '9999-12-31';
   function info(p){
+    if(qtyOf(p)===0) return {d:null, key:'none', pct:0, label:'Aucun en rayon', todo:false};
     const d = daysLeft(p.date);
     if(d<0) return {d, key:'expired', pct:100, label:'Périmé', todo:true};
     const t = sortedTiers().find(t=>d<=t.days);
@@ -258,9 +264,10 @@
       done: all.filter(x=>x.i.done).length,
       watch: all.filter(x=>x.i.key==='watch').length,
       ok: all.filter(x=>x.i.key==='ok').length,
+      none: all.filter(x=>x.i.key==='none').length,
       all: all.length
     };
-    const defs = [['todo','À traiter','todo'],['done','Déjà démarqués',''],['watch','À surveiller',''],['ok','Pas concernés',''],['all','Tous','']];
+    const defs = [['todo','À traiter','todo'],['done','Déjà démarqués',''],['watch','À surveiller',''],['ok','Pas concernés',''],['none','Aucun en rayon',''],['all','Tous','']];
     $('stats').innerHTML = defs.map(([k,l,c])=>`<button class="stat ${c} ${filterStatus===k?'active':''}" data-s="${k}"><b>${counts[k]}</b><span>${l}</span></button>`).join('');
 
     const q = $('q').value.trim().toLowerCase(), rf = fr.value, sort = $('sort').value;
@@ -271,12 +278,13 @@
       if(filterStatus==='done') return i.done;
       if(filterStatus==='watch') return i.key==='watch';
       if(filterStatus==='ok') return i.key==='ok';
+      if(filterStatus==='none') return i.key==='none';
       return true;
     });
     const rIdx = r => { const k=db.rayons.indexOf(r); return k<0?999:k; };
-    const cmpRoute = (a,b)=> rIdx(a.p.rayon)-rIdx(b.p.rayon) || SENS.indexOf(a.p.sens)-SENS.indexOf(b.p.sens) || NIVEAU.indexOf(a.p.niveau)-NIVEAU.indexOf(b.p.niveau) || a.p.date.localeCompare(b.p.date);
+    const cmpRoute = (a,b)=> rIdx(a.p.rayon)-rIdx(b.p.rayon) || SENS.indexOf(a.p.sens)-SENS.indexOf(b.p.sens) || NIVEAU.indexOf(a.p.niveau)-NIVEAU.indexOf(b.p.niveau) || dk(a.p).localeCompare(dk(b.p));
     if(sort==='route') rows.sort(cmpRoute);
-    else if(sort==='date') rows.sort((a,b)=>a.p.date.localeCompare(b.p.date)||a.p.name.localeCompare(b.p.name));
+    else if(sort==='date') rows.sort((a,b)=>dk(a.p).localeCompare(dk(b.p))||a.p.name.localeCompare(b.p.name));
     else rows.sort((a,b)=>a.p.name.localeCompare(b.p.name,'fr'));
 
     if(!rows.length){
@@ -296,15 +304,17 @@
         const eff = i.key==='discount' ? p.price*(1-i.pct/100) : null;
         price = eff!==null ? `<span class="price"><s>${money(p.price)}</s> → <b>${money(eff)}</b></span>` : `<span class="price">${money(p.price)}</span>`;
       }
+      const right = i.key==='none' ? chip : `${chip}<span class="days">${fmtDate(p.date)}</span><span class="meta" style="margin:0">${dayText(i.d)}</span>${price}`;
       let btns = '';
       if(i.key==='discount' && !i.done) btns += `<button class="btn small primary" data-act="mark" data-id="${p.id}">✔ -${i.pct}% appliqué</button>`;
       if(i.key==='expired'||i.key==='remove') btns += `<button class="btn small primary" data-act="remove" data-id="${p.id}">🗑 Retiré</button>`;
+      else if(i.key==='none') btns += `<button class="btn small" data-act="remove" data-id="${p.id}">Retirer de la liste</button>`;
       else btns += `<button class="btn small" data-act="remove" data-id="${p.id}">Vendu / retiré</button>`;
       btns += `<button class="btn small" data-act="edit" data-id="${p.id}">Modifier</button>`;
       html += `<div class="item ${i.key}">
         <div><h3>${esc(p.name)}</h3>
           <div class="meta"><span>📍 ${loc}</span>${p.qty>1?`<span>×${p.qty}</span>`:''}${p.ean?`<span>${esc(p.ean)}</span>`:''}</div></div>
-        <div class="right">${chip}<span class="days">${fmtDate(p.date)}</span><span class="meta" style="margin:0">${dayText(i.d)}</span>${price}</div>
+        <div class="right">${right}</div>
         <div class="actions">${btns}</div></div>`;
     }
     $('list').innerHTML = html;
@@ -336,15 +346,18 @@
     $('pNiveau').value = p?.niveau || keep?.niveau || 'Milieu';
     $('pLoc').value = p?.loc ?? keep?.loc ?? '';
     $('pDate').value = p?.date || '';
-    $('pQty').value = p?.qty || 1;
+    $('pQty').value = p ? qtyOf(p) : 1;
     $('pPrice').value = p?.price || '';
     $('pSaveNext').style.display = p ? 'none' : '';
+    $('pDate').required = readQty()>0;
     updatePreview();
     if(!$('dlgProduct').open) $('dlgProduct').showModal();
     $('pName').focus();
   }
+  function readQty(){ const v=parseInt($('pQty').value); return Number.isNaN(v)?1:Math.max(0,v); }
   function updatePreview(){
     const v = $('pDate').value;
+    if(readQty()===0){ $('pPreview').textContent='Quantité 0 : aucun en rayon, rien à vérifier. La date est facultative.'; return; }
     if(!v){ $('pPreview').textContent='Choisissez la date limite pour voir l\'action à faire.'; return; }
     const i = info({date:v, marked:0});
     const t = sortedTiers();
@@ -372,7 +385,7 @@
       id: editingId || uid(),
       name: $('pName').value.trim(), ean: $('pEan').value.trim(),
       rayon: $('pRayon').value, sens: $('pSens').value, niveau: $('pNiveau').value, loc: $('pLoc').value.trim(),
-      date, qty: Math.max(1, parseInt($('pQty').value)||1), price: parseFloat($('pPrice').value)||0,
+      date, qty: readQty(), price: parseFloat($('pPrice').value)||0,
       marked: old && old.date===date ? (old.marked||0) : 0   // nouvelle date → on repart de zéro
     };
   }
@@ -385,6 +398,7 @@
   $('pSaveNext').onclick = ()=>{ const p=readForm(); if(!p) return; commit(p); toast('✔ Enregistré : '+p.name); openProduct(null,p); };
   $('pCancel').onclick = ()=>$('dlgProduct').close();
   $('pDate').addEventListener('input', updatePreview);
+  $('pQty').addEventListener('input', ()=>{ $('pDate').required = readQty()>0; updatePreview(); });
 
   /* ---------- actions de liste ---------- */
   $('list').addEventListener('click', e=>{
@@ -468,9 +482,9 @@
     const cell = v=>`"${String(v??'').replace(/"/g,'""')}"`;
     const head = ['Produit','Rayon','Sens','Niveau','Précision','Date limite','Jours restants','Statut','Quantité','Prix','Code-barres'];
     const lines = [head.map(cell).join(';')];
-    db.products.slice().sort((a,b)=>a.date.localeCompare(b.date)).forEach(p=>{
+    db.products.slice().sort((a,b)=>dk(a).localeCompare(dk(b))).forEach(p=>{
       const i=info(p);
-      lines.push([p.name,p.rayon,p.sens,p.niveau,p.loc,fmtDate(p.date),i.d,i.label,p.qty,p.price?String(p.price).replace('.',','):'',p.ean].map(cell).join(';'));
+      lines.push([p.name,p.rayon,p.sens,p.niveau,p.loc,p.date?fmtDate(p.date):'',i.d??'',i.label,qtyOf(p),p.price?String(p.price).replace('.',','):'',p.ean].map(cell).join(';'));
     });
     download(`suivi-dlc-${stamp()}.csv`, '\ufeff'+lines.join('\r\n'), 'text/csv;charset=utf-8');
   };
