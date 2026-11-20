@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Krillion FR → EN Express",
+  "version": "1.0.0",
+  "description": "Barre flottante : tape en français, Entrée, la traduction anglaise est envoyée dans Krillion.io.",
+  "host_permissions": [
+    "https://krillion.io/*",
+    "https://*.krillion.io/*",
+    "https://translate.googleapis.com/*",
+    "https://api.mymemory.translated.net/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://krillion.io/*", "https://*.krillion.io/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
