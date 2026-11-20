@@ -141,6 +141,13 @@
       return new Promise(res => this.tweens.push({ obj, key, from: obj[key], to, t: 0, d: Math.max(1, ms), ease: SC.ease[ease], res }));
     }
 
+    /** Ne montre que ces unités (les autres disparaissent en fondu). null = tout le monde. */
+    setFocus(units) {
+      this.focus = units ? new Set(units) : null;
+      for (const v of this.views.values()) v.visTarget = !this.focus || this.focus.has(v.unit) ? 1 : 0;
+    }
+    addFocus(...units) { if (this.focus) this.setFocus([...this.focus, ...units]); }
+
     // ---------- effets d'écran ----------
     shake(mag, ms) { this.shakeMag = Math.max(this.shakeMag * (this.shakeLeft > 0 ? 1 : 0), mag); this.shakeLeft = Math.max(this.shakeLeft, ms); }
     hitStop(ms) { this.hitstopLeft = Math.max(this.hitstopLeft, ms); }
@@ -200,7 +207,7 @@
       this._drawSlots(ctx);
       this.fx.draw(ctx, 'ground');
 
-      const views = [...this.views.values()].filter(v => !(v.dead && v.alpha <= 0.01)).sort((a, b) => a.y - b.y);
+      const views = [...this.views.values()].filter(v => !(v.dead && v.alpha <= 0.01) && v.vis > 0.01).sort((a, b) => a.y - b.y);
       for (const v of views) this._drawShadow(ctx, v);
       this._drawTargetRings(ctx);
       for (const v of views) v.draw(ctx);
@@ -215,7 +222,7 @@
     _drawShadow(ctx, v) {
       const air = Math.max(0, -v.pose.ry) / 160;
       ctx.save();
-      ctx.globalAlpha = 0.38 * (1 - air * 0.6) * v.alpha;
+      ctx.globalAlpha = 0.38 * (1 - air * 0.6) * v.alpha * v.vis;
       ctx.fillStyle = '#000';
       ctx.beginPath(); ctx.ellipse(v.x, v.y + 2, 30 * v.scale * (1 - air * 0.35), 8 * v.scale, 0, 0, 7); ctx.fill();
       ctx.restore();
@@ -250,7 +257,7 @@
 
     _drawHud(ctx, v) {
       const u = v.unit; if (!u) return;
-      const alpha = v.dead ? v.alpha : 1;
+      const alpha = (v.dead ? v.alpha : 1) * v.vis;
       if (alpha <= 0.02) return;
       const bw = 78, x = v.x - bw / 2;
       const topY = v.topY() - 8;

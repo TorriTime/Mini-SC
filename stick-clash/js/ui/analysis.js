@@ -50,13 +50,13 @@
     const warnings = [];
     for (const c of coverage) {
       if (c.producers.length && !c.producers.some(p => c.consumers.some(q => q !== p))) {
-        warnings.push(`Personne ne poursuit « ${c.state.name} » (créé par ${c.producers.map(u => u.name).join(', ')}).`);
+        warnings.push({ units: c.producers.map(u => u.def.id), text: `Personne ne poursuit « ${c.state.name} » (créé par ${c.producers.map(u => u.name).join(', ')}).` });
       }
     }
     for (const u of team) {
       for (const p of u.pursuits) {
         const fed = p.triggers.some(t => team.some(o => o !== u && coverageHas(coverage, t, o)));
-        if (!fed) warnings.push(`${u.name} (${p.name}) ne sera jamais déclenché : aucun allié n'inflige ${p.triggers.map(t => SC.states.get(t).name).join(' / ')}.`);
+        if (!fed) warnings.push({ units: [u.def.id], text: `${u.name} (${p.name}) ne sera jamais déclenché : aucun allié n'inflige ${p.triggers.map(t => SC.states.get(t).name).join(' / ')}.` });
       }
     }
     const best = chains[0] || null;

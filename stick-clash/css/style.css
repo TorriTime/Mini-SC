@@ -71,6 +71,7 @@ h2 { font-size: 16px; margin-bottom: 8px; } h2 small { font-weight: 400; color: 
 .slot.empty { cursor: default; justify-content: center; }
 .slot.over { background: #2b2050; border-color: var(--gold); transform: scale(1.03); }
 .slot.drag { opacity: .4; }
+.slot.sel { box-shadow: 0 0 0 2px var(--c), 0 0 14px color-mix(in srgb, var(--c) 55%, transparent); }
 .slot.hl { border-color: var(--gold); background: #2a2146; box-shadow: 0 0 12px rgba(255,210,74,.45); }
 .slot-n { position: absolute; top: 4px; left: 7px; font-weight: 900; font-size: 13px; color: var(--gold); }
 .slot-x { position: absolute; top: 3px; right: 4px; padding: 0 6px; font-size: 11px; line-height: 18px; background: transparent; border-color: transparent; color: var(--muted); }
@@ -94,6 +95,8 @@ button.suggest { border-color: var(--gold); color: var(--gold); }
 .chain.dead .len { color: var(--muted); }
 .flow { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 .step { display: inline-flex; flex-direction: column; align-items: center; line-height: 1.1; } .step small { font-size: 10px; color: var(--muted); }
+.an-sub { font-size: 13px; margin: 10px 0 0; color: var(--txt); } .an-sub small { color: var(--muted); font-weight: 400; margin-left: 6px; }
+.step.me .uchip { box-shadow: 0 0 0 2px #fff; }
 .step.open .uchip { box-shadow: 0 0 0 2px var(--gold); }
 .arrow { display: inline-flex; align-items: center; gap: 3px; color: var(--muted); font-size: 11px; } .arrow::before { content: '→'; } .arrow .end { font-style: normal; font-size: 10px; }
 .uchip { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 12px; font-weight: 800; color: #10101c; background: var(--c); }

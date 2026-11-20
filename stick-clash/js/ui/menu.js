@@ -59,6 +59,7 @@
       this.mode = 'manual';
       this.drag = null;
       this.hl = [];          // emplacements surlignés (survol d'un enchaînement)
+      this.selId = null;     // personnage dont on analyse les combos
       this.load();
       this.build();
       this.render();
@@ -216,7 +217,7 @@
     slotEl(side, i, id, an) {
       const def = id ? SC.characters.get(id) : null;
       const s = document.createElement('div');
-      s.className = 'slot' + (def ? '' : ' empty') + (side === this.active && this.hl.includes(i) ? ' hl' : '');
+      s.className = 'slot' + (def ? '' : ' empty') + (side === this.active && this.hl.includes(i) ? ' hl' : '') + (def && side === this.active && id === this.selId ? ' sel' : '');
       s.dataset.i = i;
       let role = '';
       if (def) {
@@ -236,7 +237,7 @@
         s.onmouseenter = () => this.showDetails(def);
         s.querySelector('.slot-x').onclick = ev => { ev.stopPropagation(); this.remove(side, i); };
       }
-      s.onclick = () => { if (this.active !== side) { this.active = side; this.commit(); } };
+      s.onclick = () => { this.active = side; if (id) this.selId = id; this.commit(); };
       s.ondragover = ev => { if (!this.drag) return; ev.preventDefault(); ev.dataTransfer.dropEffect = this.drag.kind === 'slot' && this.drag.side !== side ? 'copy' : 'move'; s.classList.add('over'); };
       s.ondragleave = () => s.classList.remove('over');
       s.ondrop = ev => {
@@ -264,35 +265,38 @@
       const an = SC.analyzeTeam(team);
       const opt = SC.bestFormation(team);
       const better = opt.score > an.score + 1e-9;
+      const sid = team.includes(this.selId) ? this.selId : team[0];
+      this.selId = sid;
+      const me = SC.characters.get(sid);
       const chip = u => `<span class="uchip" style="--c:${u.def.look.color}">${esc(u.name)}</span>`;
       const st = id => D.stateChip(id);
 
-      const rows = an.chains.map((c, idx) => {
+      const row = (c, idx) => {
         const flow = [`<span class="step open">${chip(c.opener)}<small>${esc(c.ability.name)}</small></span>`, `<span class="arrow">${st(c.openState)}${c.chance < 1 ? `<small>${Math.round(c.chance * 100)}%</small>` : ''}</span>`];
         c.steps.forEach(s => {
-          flow.push(`<span class="step">${chip(s.unit)}<small>${esc(s.pursuit.name)}</small></span>`);
+          flow.push(`<span class="step${s.unit.def.id === sid ? ' me' : ''}">${chip(s.unit)}<small>${esc(s.pursuit.name)}</small></span>`);
           flow.push(`<span class="arrow">${s.produced ? st(s.produced) : '<em class="end">fin</em>'}</span>`);
         });
         if (!c.steps.length) flow.push('<span class="muted small">aucune poursuite</span>');
         return `<div class="chain${c.length >= 3 ? ' good' : ''}${c.steps.length ? '' : ' dead'}" data-i="${idx}">
           <span class="len">×${c.length}</span><div class="flow">${flow.join('')}</div></div>`;
-      }).join('');
+      };
+      const idxOf = c => an.chains.indexOf(c);
+      const opens = an.chains.filter(c => c.opener.def.id === sid);
+      const follows = an.chains.filter(c => c.opener.def.id !== sid && c.steps.some(s => s.unit.def.id === sid));
+      const section = (title, hint, list) => `<h3 class="an-sub">${title} <small>${hint}</small></h3>
+        <div class="chains">${list.length ? list.map(c => row(c, idxOf(c))).join('') : '<p class="muted small">Aucun enchaînement avec cette équipe.</p>'}</div>`;
 
-      const cov = an.coverage.map(c => {
-        const ok = c.producers.length && c.consumers.length;
-        return `<div class="cov${ok ? '' : ' gap'}"><span>${st(c.state.id)}</span>
-          <div><small class="trg">inflige</small> ${c.producers.length ? c.producers.map(chip).join('') : '<em class="muted">—</em>'}</div>
-          <div><small class="trg">poursuit</small> ${c.consumers.length ? c.consumers.map(chip).join('') : '<em class="muted">—</em>'}</div></div>`;
-      }).join('');
+      const warns = an.warnings.filter(w => w.units.includes(sid));
+      const best = Math.max(0, ...opens.map(c => c.length), ...follows.map(c => c.length));
 
       box.innerHTML = `
-        <div class="an-head"><h2>Enchaînements de ${title}</h2>
-          <span class="an-sum">${an.best ? `meilleur combo <b>×${an.best.length}</b>` : ''}</span>
-          <button class="ghost${better ? ' suggest' : ''}" id="an-opt" ${better ? '' : 'disabled'} title="Teste les ${24} ordres possibles">${better ? 'Appliquer la meilleure formation' : 'Formation déjà optimale'}</button></div>
-        <p class="muted small">Ouvertures possibles de chaque personnage, avec la formation actuelle. Survolez une ligne pour repérer les emplacements concernés. L'ordre des poursuivants suit l'emplacement.</p>
-        <div class="chains">${rows || '<p class="muted">Aucun état n\'est infligé par cette équipe.</p>'}</div>
-        ${an.warnings.length ? `<div class="warns">${an.warnings.map(w => `<div class="warn">⚠ ${esc(w)}</div>`).join('')}</div>` : ''}
-        <details class="covbox"><summary>Couverture des états</summary><div class="covs">${cov}</div></details>`;
+        <div class="an-head"><h2>Combos de <span class="uchip" style="--c:${me.look.color}">${esc(me.name)}</span> <small>avec la formation actuelle · cliquez un autre personnage pour changer</small></h2>
+          <span class="an-sum">${best ? `meilleur combo <b>×${best}</b>` : ''}</span>
+          <button class="ghost${better ? ' suggest' : ''}" id="an-opt" ${better ? '' : 'disabled'} title="Teste les 24 ordres possibles pour toute l'équipe">${better ? 'Appliquer la meilleure formation' : 'Formation déjà optimale'}</button></div>
+        ${section('Ouvre le combo', `avec ${esc(me.normal.name)}${me.special ? ` ou ${esc(me.special.name)}` : ''}`, opens)}
+        ${section('Rejoint le combo', `${me.pursuits.map(p => esc(p.name)).join(', ')} : enchaînements lancés par un allié`, follows)}
+        ${warns.length ? `<div class="warns">${warns.map(w => `<div class="warn">⚠ ${esc(w.text)}</div>`).join('')}</div>` : ''}`;
 
       box.querySelectorAll('.chain').forEach(el => {
         const c = an.chains[+el.dataset.i];

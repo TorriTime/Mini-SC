@@ -52,6 +52,7 @@
     async onActionStart(e) {
       const { actor, ability } = e;
       const st = this.stage;
+      st.setFocus([actor, ...e.targets]);
       if (ability.type === 'special') {
         const th = this.theme(ability);
         st.banner(ability.name, actor.name, th.main);
@@ -71,6 +72,7 @@
       const foe = first && first.side !== actor.side;
       const tv = first ? this.v(first) : null;
 
+      st.addFocus(actor, ...targets);
       if (pursuit) {
         st.setCombo(combo, chain.damage);
         const th = this.theme(ability);
@@ -207,6 +209,7 @@
         st.setCombo(e.combo, e.damage);
         await st.wait(420);
       } else await st.wait(70);
+      st.setFocus(null); // tout le monde réapparaît pendant le retour en place
       await Promise.all([...st.views.values()].map(v => SC.recoverView(v, st)));
       for (const u of this.battle.units) { st.tween(u, 'shownHp', u.hp, 120); }
       st.camReset();

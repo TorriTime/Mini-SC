@@ -241,7 +241,7 @@
       this.pose = Object.assign({}, SC.poseOf('idle'));
       this.base = 'idle';
       this.settle = 0.014;
-      this.alpha = 1; this.flash = 0; this.flinch = 0;
+      this.alpha = 1; this.vis = 1; this.visTarget = 1; this.flash = 0; this.flinch = 0;
       this.t = Math.random() * 1000;
       this.task = null; this.mv = null;
       this.running = false; this.runPhase = 0;
@@ -307,6 +307,7 @@
 
     update(dt) {
       this.t += dt;
+      if (this.vis !== this.visTarget) { const d = dt / 220; this.vis = this.visTarget > this.vis ? Math.min(this.visTarget, this.vis + d) : Math.max(this.visTarget, this.vis - d); }
       if (this.flash > 0) this.flash = Math.max(0, this.flash - dt / 140);
       if (this.flinch > 0) this.flinch = Math.max(0, this.flinch - dt / 230);
 
@@ -386,11 +387,11 @@
 
     draw(ctx) {
       for (const g of this.trail) {
-        ctx.save(); ctx.globalAlpha = g.a * (this.alpha);
+        ctx.save(); ctx.globalAlpha = g.a * this.alpha * this.vis;
         drawStickman(ctx, { look: this.look, x: g.x, y: g.y, face: g.face, scale: this.scale, pose: g.pose, ghost: this.look.accent, time: this.t });
         ctx.restore();
       }
-      drawStickman(ctx, { look: this.look, x: this.x, y: this.y, face: this.face, scale: this.scale, pose: this.renderPose(), flash: this.flash, alpha: this.alpha, time: this.t });
+      drawStickman(ctx, { look: this.look, x: this.x, y: this.y, face: this.face, scale: this.scale, pose: this.renderPose(), flash: this.flash, alpha: this.alpha * this.vis, time: this.t });
     }
   }
   SC.StickView = StickView;
