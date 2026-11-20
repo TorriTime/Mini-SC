@@ -54,6 +54,7 @@
     const power = ab.hits.reduce((a, h) => a + h.power, 0);
     const meta = [];
     if (ab.type === 'special') meta.push(`${ab.cost} chakra`, `recharge ${ab.cooldown}`);
+    if (ab.type === 'pursuit') meta.push(`${Math.round(ab.chance * 100)} % de se déclencher`);
     if (power > 0) meta.push(`puissance ×${power.toFixed(2)}${ab.hits.length > 1 ? ` (${ab.hits.length} coups)` : ''}`);
     const tgt = { enemy: 'un ennemi', enemies: 'tous les ennemis', ally: 'un allié', allies: 'toute l\'équipe', self: 'soi' }[ab.target];
     meta.push(tgt);

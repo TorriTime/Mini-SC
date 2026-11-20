@@ -24,6 +24,7 @@
       on('hit', this.onHit);
       on('death', this.onDeath);
       on('attack:end', this.onAttackEnd);
+      on('pursuit:fail', this.onPursuitFail);
       on('chain:end', this.onChainEnd);
       on('dot', this.onDot);
       on('heal', this.onHeal);
@@ -201,6 +202,14 @@
         const d = Math.hypot(av.homeX - av.x, av.homeY - av.y);
         if (d > 4) av.moveTo(av.homeX, av.homeY, Math.max(180, d / 0.95), { run: true, endFace: av.homeFace }); // sans attendre
       }
+    }
+
+    async onPursuitFail(e) {
+      const st = this.stage, v = this.v(e.pursuer);
+      st.addFocus(e.pursuer);
+      this.fx.text(v.x, v.topY() - 24, 'Poursuite ratée', { color: '#a79fd0', size: 17, rise: 24, life: 800 });
+      v.flinch = 0.4;
+      await st.wait(380);
     }
 
     async onChainEnd(e) {

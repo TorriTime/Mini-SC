@@ -21,6 +21,7 @@
  *   vfx:    { cast, travel, impact }                // noms d'effets (render/vfxlib.js)
  *   element,                                        // couleur des VFX (défaut : celui du perso)
  *   triggers: ['HIGH', ...]                         // poursuites : états déclencheurs
+ *   chance:   0..1                                  // poursuites : chance de se déclencher (défaut rules.pursuitChance)
  *   hits: [{
  *     power,                  // multiplicateur d'ATK
  *     state, stateChance,     // état infligé
@@ -74,6 +75,7 @@
     if (type !== 'special') { ab.cost = 0; ab.cooldown = 0; ab.initialCooldown = 0; }
     if (type === 'pursuit') {
       ab.target = 'enemy';
+      ab.chance = a.chance ?? SC.rules.pursuitChance;
       if (!ab.triggers.length) throw new Error(`${ab.id} : une poursuite doit avoir des "triggers"`);
       ab.triggers.forEach(s => { if (!SC.states.has(s)) throw new Error(`${ab.id} : état inconnu "${s}"`); });
     }

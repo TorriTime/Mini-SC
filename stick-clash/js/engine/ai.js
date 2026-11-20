@@ -48,7 +48,7 @@
       }
       if (targets.some(t => t.side !== unit.side)) {
         const pv = battle.previewChain(unit, ab, target);
-        for (const st of pv.steps) s += (st.estimate + 18) * (pv.uncertain ? 0.65 : 1);
+        for (const st of pv.steps) s += (st.estimate + 18) * st.cumulative * (pv.uncertain ? 0.65 : 1);
       }
       if (ab.type === 'special') s *= 1.1;
       return s;

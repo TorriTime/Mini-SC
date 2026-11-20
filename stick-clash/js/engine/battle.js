@@ -182,7 +182,9 @@
 
       // Poursuites en cascade
       while (!this.checkEnd() && chain.actions < R().maxChainLength) {
-        const p = this.findPursuit(actor.side, chain, u => u.state);
+        const failed = [];
+        const p = this.findPursuit(actor.side, chain, u => u.state, r => this.rng.chance(r.chance) || (failed.push(r), false));
+        for (const f of failed) await this.emit('pursuit:fail', { pursuer: f.unit, pursuit: f.pursuit, target: f.target, chain });
         if (!p) break;
         chain.pursuers.add(p.pursuer);
         p.target.state = null; // l'état est consommé
@@ -200,14 +202,18 @@
      * Prochaine poursuite possible pour l'équipe `side`.
      * Fonction pure sur `stateOf` : sert aussi à prévisualiser (IA, interface).
      */
-    findPursuit(side, chain, stateOf) {
+    findPursuit(side, chain, stateOf, roll) {
       const team = this.alive(side).slice().sort((a, b) => a.slot - b.slot);
       const foes = this.alive(side === 'A' ? 'B' : 'A');
       for (const p of team) {
         if (chain.pursuers.has(p)) continue;
         for (const pu of p.pursuits) {
           const m = foes.filter(f => pu.triggers.includes(stateOf(f)));
-          if (m.length) return { pursuer: p, pursuit: pu, target: m.find(f => f === chain.last) || m[0] };
+          if (!m.length) continue;
+          const target = m.find(f => f === chain.last) || m[0];
+          // Tirage de la chance : un échec « grille » ce personnage pour le reste de la chaîne.
+          if (roll && !roll({ unit: p, pursuit: pu, target, chance: pu.chance })) { chain.pursuers.add(p); break; }
+          return { pursuer: p, pursuit: pu, target };
         }
       }
       return null;
@@ -227,6 +233,7 @@
       for (const h of ability.hits) { const s = stateLabel(h); if (s) targets.forEach(t => states.set(t, s)); }
       const chain = { pursuers: new Set([actor]), last: targets[0] || null, actions: 1 };
       const steps = [];
+      let cum = 1;
       while (targets.length && chain.actions < R().maxChainLength) {
         const p = this.findPursuit(actor.side, chain, u => states.get(u) || null);
         if (!p) break;
@@ -238,7 +245,8 @@
         states.set(p.target, next);
         const power = p.pursuit.hits.reduce((a, h) => a + h.power, 0);
         const estimate = R().damageScale * p.pursuer.stat('atk') * power * (R().defenseConstant / (R().defenseConstant + p.target.stat('def')));
-        steps.push({ pursuer: p.pursuer, pursuit: p.pursuit, target: p.target, estimate });
+        cum *= p.pursuit.chance;
+        steps.push({ pursuer: p.pursuer, pursuit: p.pursuit, target: p.target, estimate, chance: p.pursuit.chance, cumulative: cum });
       }
       return { steps, uncertain, targets };
     }

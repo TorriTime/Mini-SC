@@ -177,7 +177,7 @@
       if (D.statesOf(ab).length) {
         const pv = this.battle.previewChain(unit, ab, target);
         html += pv.steps.length
-          ? `<br><span class="trg">Poursuites ${pv.uncertain ? 'possibles' : 'attendues'} :</span> ` + pv.steps.map(s => `<b style="color:${s.pursuer.def.look.color}">${esc(s.pursuer.name)}</b> <small>(${esc(s.pursuit.name)})</small>`).join(' → ')
+          ? `<br><span class="trg">Poursuites possibles :</span> ` + pv.steps.map(s => `<b style="color:${s.pursuer.def.look.color}">${esc(s.pursuer.name)}</b> <small>(${esc(s.pursuit.name)} ${Math.round(s.chance * 100)} %)</small>`).join(' → ')
           : `<br><span class="muted">Aucune poursuite disponible.</span>`;
       }
       this.q('#hint').innerHTML = html;
@@ -242,6 +242,7 @@
         }
         if (e.pursuit) this.stats.pursuits++;
       });
+      b.on('pursuit:fail', e => this.log(`↳ ${nm(e.pursuer)} rate sa poursuite <em>${esc(e.pursuit.name)}</em>`, 'miss'));
       b.on('chain:end', e => {
         this.stats.chains++; this.stats.maxCombo = Math.max(this.stats.maxCombo, e.combo);
         if (e.combo >= 2) this.log(`COMBO ×${e.combo} — ${e.damage} dégâts`, 'combo');

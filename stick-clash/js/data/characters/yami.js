@@ -4,9 +4,9 @@ SC.defineCharacter({
   look: { color: '#b98aff', accent: '#e2ccff', parts: ['hood', 'scarf', 'kunai'] },
   stats: { hp: 760, atk: 105, def: 45, spd: 110, crit: 0.15 },
   normal: {
-    id: 'yami-blade', name: 'Lame d\'ombre', desc: 'Entaille rapide (45 % de repousser, 25 % d\'affaiblir).',
+    id: 'yami-blade', name: 'Lame d\'ombre', desc: 'Entaille rapide (25 % d\'affaiblir).',
     approach: 'blink', anim: 'slash', vfx: { impact: 'slash' },
-    hits: [{ power: 1.0, state: 'PUSH', stateChance: 0.45, buffs: [{ id: 'weak', duration: 2, chance: 0.25 }] }],
+    hits: [{ power: 1.0, buffs: [{ id: 'weak', duration: 2, chance: 0.25 }] }],
   },
   special: {
     id: 'yami-embrace', name: 'Étreinte Noire', cost: 40, cooldown: 3,
@@ -18,7 +18,7 @@ SC.defineCharacter({
     }],
   },
   pursuits: [{
-    id: 'yami-bind', name: 'Entraves d\'Ombre', triggers: ['LOW', 'PUSH'],
+    id: 'yami-bind', name: 'Entraves d\'Ombre', triggers: ['LOW'],
     desc: 'Cloue un ennemi au sol (Chute) et l\'affaiblit.',
     approach: 'blink', anim: 'kick', vfx: { impact: 'shadow-spikes' },
     hits: [{ power: 0.55, state: 'DOWN', buffs: [{ id: 'weak', duration: 2 }] }],

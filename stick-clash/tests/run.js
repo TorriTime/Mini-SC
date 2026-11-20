@@ -116,6 +116,18 @@ const pick4 = rng => rng.shuffle(ids).slice(0, 4);
     SC.characters.map.delete('test-stunner'); // ne pas polluer la simulation de masse
   });
 
+  await test('chaque poursuite a ~50 % de chance de se déclencher (jamais automatique)', async () => {
+    let ok = 0, fail = 0;
+    for (let i = 0; i < 150; i++) {
+      const b = new SC.Battle({ teamA: ['kaze', 'suzu', 'hana', 'ryu'], teamB: ['yami', 'tetsu', 'hoshi', 'sol'], seed: 500 + i });
+      b.on('attack:begin', e => { if (e.pursuit) ok++; });
+      b.on('pursuit:fail', () => fail++);
+      await b.run();
+    }
+    const r = ok / (ok + fail);
+    assert(fail > 0 && r > 0.35 && r < 0.65, `taux de déclenchement ${r.toFixed(2)}`);
+  });
+
   // ---------- simulation de masse ----------
   const rng = new SC.Random(2024);
   const stats = { n: 0, rounds: 0, maxCombo: 0, combos3: 0, chains: 0, actions: 0, winA: 0, winB: 0, draw: 0 };

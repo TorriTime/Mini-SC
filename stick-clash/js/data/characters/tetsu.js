@@ -4,9 +4,9 @@ SC.defineCharacter({
   look: { color: '#d4a463', accent: '#f2dcae', parts: ['helmet', 'gloves'] },
   stats: { hp: 1150, atk: 85, def: 90, spd: 55, crit: 0.05 },
   normal: {
-    id: 'tetsu-bash', name: 'Coup d\'épaule', desc: 'Un coup lourd (45 % de repousser).',
+    id: 'tetsu-bash', name: 'Coup d\'épaule', desc: 'Un coup lourd.',
     anim: 'punch', vfx: { impact: 'quake' },
-    hits: [{ power: 0.95, state: 'PUSH', stateChance: 0.45 }],
+    hits: [{ power: 0.95 }],
   },
   special: {
     id: 'tetsu-charge', name: 'Charge du Bélier', cost: 30, cooldown: 2,
@@ -15,7 +15,7 @@ SC.defineCharacter({
     hits: [{ power: 1.2, state: 'PUSH', buffs: [{ id: 'guard', duration: 2, to: 'self' }] }],
   },
   pursuits: [{
-    id: 'tetsu-crush', name: 'Écrasement Tellurique', triggers: ['DOWN', 'LOW'],
+    id: 'tetsu-crush', name: 'Écrasement Tellurique', triggers: ['DOWN'],
     desc: 'Finisseur : écrase un ennemi à terre (aucun nouvel état).',
     anim: 'slam', vfx: { impact: 'quake' },
     hits: [{ power: 1.3 }],

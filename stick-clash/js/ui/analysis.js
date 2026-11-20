@@ -27,17 +27,19 @@
         const steps = pv.steps.map(s => {
           const consumed = cur;
           cur = lastState(s.pursuit.hits);
-          return { unit: s.pursuer, pursuit: s.pursuit, consumed, produced: cur, estimate: s.estimate };
+          return { unit: s.pursuer, pursuit: s.pursuit, consumed, produced: cur, estimate: s.estimate, chance: s.chance, cumulative: s.cumulative };
         });
         const chance = Math.max(...sts.map(s => s.chance));
         chains.push({
           opener: u, ability: ab, openState: lastState(ab.hits) || sts[0].state, chance,
           steps, length: 1 + steps.length, uncertain: pv.uncertain, slots: [u.slot, ...steps.map(s => s.unit.slot)],
-          power: steps.reduce((a, s) => a + s.estimate, 0),
+          power: steps.reduce((a, s) => a + s.estimate * s.cumulative, 0),
+          expected: steps.reduce((a, s) => a + s.cumulative, 0),
         });
       }
     }
     chains.sort((a, b2) => b2.length - a.length || b2.power - a.power);
+    // (la longueur affichée est le maximum possible ; chaque poursuite n'a qu'une chance de se déclencher)
 
     // Couverture par état
     const coverage = SC.states.list().map(st => {
@@ -60,7 +62,7 @@
       }
     }
     const best = chains[0] || null;
-    const score = chains.reduce((a, c) => a + (c.length - 1) * (c.length - 1) * (c.uncertain ? 0.7 : 1), 0) + (best ? (best.length - 1) * 3 : 0);
+    const score = chains.reduce((a, c) => a + c.expected * c.expected * (c.uncertain ? 0.7 : 1), 0) + (best ? best.expected * 3 : 0);
     return { chains, coverage, warnings, best, score, team };
   };
 

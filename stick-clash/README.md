@@ -15,7 +15,7 @@ node tools/build-single.js # produit dist/stick-clash.html (jeu en un seul fichi
 - Chaque personnage a une **attaque normale**, une **technique spéciale** (coût en chakra + temps de recharge), une ou plusieurs **poursuites**, et un **passif**. Tout le monde peut aussi **se concentrer** (passer son tour : +25 chakra et garde).
 - **Chakra** : +20 au début de chaque tour, +10 avec une attaque normale, +5 quand on est touché. Une technique coûte 30 à 50 et se recharge en 2 à 4 tours.
 - Une attaque peut infliger un **état** : `Projection haute`, `Projection basse`, `Repoussement`, `Chute`.
-- **Poursuites** : après une action, chaque allié (par ordre d'emplacement) dont une poursuite réagit à l'état d'un ennemi frappe automatiquement. Elle consomme l'état et peut en infliger un nouveau, ce qui déclenche la poursuite suivante : **chaîne de combo**.
+- **Poursuites** : après une action, chaque allié (par ordre d'emplacement) dont une poursuite réagit à l'état d'un ennemi tente de frapper, avec **50 % de chance** (`rules.pursuitChance`, ou `chance` sur la poursuite). Un échec écarte ce personnage pour le reste de la chaîne. Elle consomme l'état et peut en infliger un nouveau, ce qui déclenche la poursuite suivante : **chaîne de combo**.
   - un personnage ne poursuit qu'**une fois par chaîne** ; l'auteur de l'action initiale ne poursuit pas son propre coup ;
   - les dégâts diminuent légèrement au fil de la chaîne (`rules.comboScaling`) ; 8 actions maximum ;
   - les états retombent à la fin de la chaîne.

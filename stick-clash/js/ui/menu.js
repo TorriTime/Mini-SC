@@ -274,12 +274,12 @@
       const row = (c, idx) => {
         const flow = [`<span class="step open">${chip(c.opener)}<small>${esc(c.ability.name)}</small></span>`, `<span class="arrow">${st(c.openState)}${c.chance < 1 ? `<small>${Math.round(c.chance * 100)}%</small>` : ''}</span>`];
         c.steps.forEach(s => {
-          flow.push(`<span class="step${s.unit.def.id === sid ? ' me' : ''}">${chip(s.unit)}<small>${esc(s.pursuit.name)}</small></span>`);
+          flow.push(`<span class="step${s.unit.def.id === sid ? ' me' : ''}">${chip(s.unit)}<small>${esc(s.pursuit.name)} · ${Math.round(s.chance * 100)} %</small></span>`);
           flow.push(`<span class="arrow">${s.produced ? st(s.produced) : '<em class="end">fin</em>'}</span>`);
         });
         if (!c.steps.length) flow.push('<span class="muted small">aucune poursuite</span>');
         return `<div class="chain${c.length >= 3 ? ' good' : ''}${c.steps.length ? '' : ' dead'}" data-i="${idx}">
-          <span class="len">×${c.length}</span><div class="flow">${flow.join('')}</div></div>`;
+          <span class="len" title="Maximum possible : chaque poursuite n'a qu'une chance de se déclencher">×${c.length}</span><div class="flow">${flow.join('')}</div></div>`;
       };
       const idxOf = c => an.chains.indexOf(c);
       const opens = an.chains.filter(c => c.opener.def.id === sid);

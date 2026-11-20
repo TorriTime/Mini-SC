@@ -4,9 +4,9 @@ SC.defineCharacter({
   look: { color: '#5cc2ff', accent: '#d4f0ff', parts: ['hair-long', 'orb'] },
   stats: { hp: 820, atk: 88, def: 45, spd: 95, crit: 0.08 },
   normal: {
-    id: 'hana-jet', name: 'Jet d\'eau', desc: 'Un jet d\'eau comprimé (40 % de plaquer au sol).',
+    id: 'hana-jet', name: 'Jet d\'eau', desc: 'Un jet d\'eau comprimé.',
     move: 'ranged', anim: 'cast', vfx: { travel: 'orb', impact: 'punch' },
-    hits: [{ power: 0.9, state: 'LOW', stateChance: 0.4 }],
+    hits: [{ power: 0.9 }],
   },
   special: {
     id: 'hana-mist', name: 'Brume Curative', cost: 35, cooldown: 3,
@@ -16,8 +16,8 @@ SC.defineCharacter({
     hits: [{ heal: 2.2, cleanse: true }],
   },
   pursuits: [{
-    id: 'hana-geyser', name: 'Geyser', triggers: ['LOW', 'DOWN'],
-    desc: 'Un geyser jaillit sous l\'ennemi au sol ou à terre et le projette en l\'air.',
+    id: 'hana-geyser', name: 'Geyser', triggers: ['LOW'],
+    desc: 'Un geyser jaillit sous l\'ennemi plaqué au sol et le projette en l\'air.',
     move: 'ranged', anim: 'cast', vfx: { impact: 'geyser' },
     hits: [{ power: 0.6, state: 'HIGH' }],
   }],

@@ -24,6 +24,7 @@
 
     // Combos : multiplicateur de dégâts selon le rang de l'action dans la chaîne
     comboScaling: [1, 1, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7],
+    pursuitChance: 0.5,    // chance qu'une poursuite se déclenche (surchargeable par poursuite : `chance`)
     maxChainLength: 8,     // action initiale + poursuites
 
     // Formation : multiplicateur de dégâts subis par emplacement (0 = ligne de front)
