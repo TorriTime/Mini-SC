@@ -19,6 +19,7 @@ node tools/build-single.js # produit dist/stick-clash.html (jeu en un seul fichi
   - un personnage ne poursuit qu'**une fois par chaîne** ; l'auteur de l'action initiale ne poursuit pas son propre coup ;
   - les dégâts diminuent légèrement au fil de la chaîne (`rules.comboScaling`) ; 8 actions maximum ;
   - les états retombent à la fin de la chaîne.
+- **Menu** : glissez les personnages du roster vers un emplacement (remplace ou échange), entre emplacements (échange), vers l'autre équipe (copie), ou hors du plateau (retrait). Le panneau d'analyse liste tous les enchaînements possibles de l'équipe active, signale les trous (états que personne ne poursuit) et propose la meilleure formation.
 - **Formation** : l'ordre des 4 emplacements compte. L'emplacement 1 poursuit en premier mais subit +10 % de dégâts, l'emplacement 4 subit −10 %. Deux personnages qui réagissent au même état : celui qui est devant poursuit.
 
 ### Contrôles (combat)
