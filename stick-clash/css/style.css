@@ -3,6 +3,7 @@
   --txt: #ece8ff; --muted: #9a90c4; --gold: #ffd24a; --blue: #6ec1ff; --red: #ff7a7a; --green: #58e07a;
 }
 * { box-sizing: border-box; }
+:root { color-scheme: dark; }
 html, body { margin: 0; height: 100%; background: var(--bg); color: var(--txt); font: 14px/1.4 "Trebuchet MS", "Segoe UI", system-ui, sans-serif; }
 body { overflow-x: hidden; }
 .hidden { display: none !important; }

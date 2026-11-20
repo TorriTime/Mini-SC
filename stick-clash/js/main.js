@@ -3,7 +3,7 @@
   'use strict';
   const SC = root.SC;
 
-  window.addEventListener('DOMContentLoaded', () => {
+  const boot = () => {
     const menuEl = document.getElementById('menu');
     const battleEl = document.getElementById('battle');
     let menu = null, ui = null;
@@ -27,5 +27,7 @@
     };
 
     showMenu();
-  });
+  };
+  if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', boot);
+  else boot();
 })(typeof window !== 'undefined' ? window : globalThis);
