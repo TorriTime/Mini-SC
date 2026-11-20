@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stick Clash</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Écran 1 : choix des équipes et formation (construit par ui/menu.js) -->
+    <section id="menu" class="screen"></section>
+
+    <!-- Écran 2 : combat -->
+    <section id="battle" class="screen hidden">
+      <div id="topbar">
+        <div id="roundlabel">Round 1</div>
+        <div id="order"></div>
+        <div id="controls">
+          <button id="btn-speed" title="Vitesse de l'animation (touche V)">Vitesse ×1</button>
+          <button id="btn-auto" title="Laisser l'IA jouer votre équipe (touche A)">Auto : non</button>
+          <button id="btn-quit">Menu</button>
+        </div>
+      </div>
+      <div id="stagewrap">
+        <canvas id="stage"></canvas>
+        <div id="hint"></div>
+      </div>
+      <div id="bottom">
+        <div id="actionbar"></div>
+        <div id="log"></div>
+      </div>
+      <div id="result" class="hidden"></div>
+    </section>
+  </div>
+
+  <!-- Noyau & données -->
+  <script src="js/core/util.js"></script>
+  <script src="js/data/config.js"></script>
+  <script src="js/data/elements.js"></script>
+  <script src="js/data/states.js"></script>
+  <script src="js/data/buffs.js"></script>
+
+  <!-- Moteur de combat -->
+  <script src="js/engine/schema.js"></script>
+  <script src="js/engine/unit.js"></script>
+  <script src="js/engine/battle.js"></script>
+  <script src="js/engine/ai.js"></script>
+
+  <!-- Personnages : ajouter une ligne ici pour en créer un nouveau -->
+  <script src="js/data/characters/ryu.js"></script>
+  <script src="js/data/characters/kaze.js"></script>
+  <script src="js/data/characters/tetsu.js"></script>
+  <script src="js/data/characters/suzu.js"></script>
+  <script src="js/data/characters/hana.js"></script>
+  <script src="js/data/characters/sol.js"></script>
+  <script src="js/data/characters/yami.js"></script>
+  <script src="js/data/characters/hoshi.js"></script>
+
+  <!-- Rendu -->
+  <script src="js/render/anims.js"></script>
+  <script src="js/render/stickman.js"></script>
+  <script src="js/render/fx.js"></script>
+  <script src="js/render/vfxlib.js"></script>
+  <script src="js/render/statevisuals.js"></script>
+  <script src="js/render/stage.js"></script>
+  <script src="js/render/director.js"></script>
+
+  <!-- Interface -->
+  <script src="js/ui/describe.js"></script>
+  <script src="js/ui/menu.js"></script>
+  <script src="js/ui/battleui.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
