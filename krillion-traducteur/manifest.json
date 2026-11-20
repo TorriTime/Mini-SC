@@ -1,7 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Krillion FR → EN Express",
-  "version": "1.1.0",
+  "version": "1.2.0",
+  "permissions": ["storage"],
   "description": "Barre flottante : tape en français, Entrée, la traduction anglaise est envoyée dans Krillion.io.",
   "browser_specific_settings": {
     "gecko": {
