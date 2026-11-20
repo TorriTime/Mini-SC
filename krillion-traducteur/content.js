@@ -79,7 +79,7 @@
   async function translateFrToEn(text) {
     const key = text.toLowerCase();
     if (cache.has(key)) return cache.get(key);
-    const res = await chrome.runtime.sendMessage({ type: "translate", text });
+    const res = await (globalThis.browser ?? globalThis.chrome).runtime.sendMessage({ type: "translate", text });
     if (!res || !res.ok) throw new Error((res && res.error) || "Traduction impossible");
     cache.set(key, res.text);
     return res.text;

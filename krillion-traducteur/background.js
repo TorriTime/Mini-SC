@@ -33,7 +33,9 @@ async function translate(text) {
   }
 }
 
-chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+const api = globalThis.browser ?? globalThis.chrome; // Firefox / Chrome
+
+api.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (!msg || msg.type !== "translate") return;
   translate(String(msg.text || ""))
     .then((text) => sendResponse({ ok: true, text }))
